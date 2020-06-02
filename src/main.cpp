@@ -131,10 +131,10 @@ void make_initial_calculations() {
     Serial.print(time_elapsed);
     float rpm = calculate_rpm(time_elapsed);
     Serial.print(" RPM: ");
-    Serial.print(rpm);
-    switchdelay_micros_array[i] = calculate_microdelay(rpm);
-    Serial.print(" DELAY MICROS: ");
-    Serial.println(switchdelay_micros_array[i]);
+    Serial.println(rpm);
+    //switchdelay_micros_array[i] = calculate_microdelay(rpm);
+    //Serial.print(" DELAY MICROS: ");
+    //Serial.println(switchdelay_micros_array[i]);
   }
 }
 
