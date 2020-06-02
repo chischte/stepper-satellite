@@ -1,0 +1,6 @@
+[submodule "lib/debounce-library"]
+	path = lib/debounce-library
+	url = https://github.com/chischte/debounce-library.git
+[submodule "lib/insomnia-delay-library"]
+	path = lib/insomnia-delay-library
+	url = https://github.com/chischte/insomnia-delay-library.git
