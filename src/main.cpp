@@ -19,7 +19,7 @@
 #include <Debounce.h>
 #include <Insomnia.h>
 
-// GLOBAL VARIABLES:
+// GLOBAL VARIABLES ------------------------------------------------------------
 const int min_motor_rpm = 200;
 const int max_motor_rpm = 2500;
 const int calculation_resolution = 20;
@@ -39,45 +39,50 @@ unsigned long upper_motor_starting_time;
 unsigned long upper_motor_stopping_time;
 unsigned long upper_start_time_elapsed;
 
-bool upper_motor_is_running = false;
+bool upper_motor_is_running = true;
+bool upper_motor_started = false;
 int upper_motor_rpm = 0;
 int upper_motor_microdelay;
 
 float float_time_per_speedlevel;
 int int_time_per_speedlevel;
 
-// PINS:
+// DECLARE PINS ----------------------------------------------------------------
 const byte UPPER_MOTOR_INPUT_PIN = 2;
-const byte UPPER_MOTOR_STEP_PIN=3;
+const byte UPPER_MOTOR_STEP_PIN = 3;
 
+// GENERATE OBJECTS ------------------------------------------------------------
 Insomnia print_delay;
-Insomnia upper_motor_ramp_up_delay;
-
-// GENERATE OBJECTS:
+Insomnia update_values_delay;
+Insomnia upper_motor_switching_delay;
 Debounce upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
 
-// FUNCTION DECLARARION IF NEEDED FOR THE COMPILER:
+// FUNCTION DECLARARION IF NEEDED FOR THE COMPILER -----------------------------
 float calculate_microdelay(float rpm);
 int calculate_current_step_number(unsigned long time_elapsed);
 
 // FUNCTIONS -------------------------------------------------------------------
 
-void start_upper_motor() {
-  if (!upper_motor_is_running) {
-    upper_motor_is_running = true;
-    upper_motor_starting_time = millis();
+void upper_motor_manage_ramp_up() {
+  if (!upper_motor_started) {
+    upper_motor_started = true;
     upper_motor_microdelay = startspeed_microdelay;
-    current_step=0;
+    current_step = 0;
   }
+  upper_motor_microdelay -= int_delay_difference_per_speedlevel;
+  current_step++;
 
-  if (upper_motor_ramp_up_delay.delay_time_is_up(int_time_per_speedlevel)) {
-    upper_motor_microdelay -= int_delay_difference_per_speedlevel;
-    current_step++;
+  if (upper_motor_microdelay < topspeed_microdelay) {
+    upper_motor_microdelay = topspeed_microdelay;
   }
-  if (upper_motor_microdelay<topspeed_microdelay){
-    upper_motor_microdelay=topspeed_microdelay;
+}
+
+void generate_output_signal() {
+  if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
+    digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
+    Serial.println(digitalRead(UPPER_MOTOR_STEP_PIN));
   }
- }
+}
 
 unsigned long measure_runtime() {
   static long previous_micros = micros();
@@ -88,8 +93,9 @@ unsigned long measure_runtime() {
 
 void stop_upper_motor() {}
 
+// INITIAL CALCULATIONS --------------------------------------------------------
 void make_initial_calculations() {
-  
+
   float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
   int_time_per_speedlevel = int(float_time_per_speedlevel);
   Serial.print("TIME PER SPEEDLEVEL: ");
@@ -119,10 +125,10 @@ float calculate_microdelay(float rpm) {
   float switches_per_turn = full_steps_per_turn * micro_step_factor * switches_per_step;
   float steps_per_second = turns_per_second * switches_per_turn;
   float float_microdelay = 1000000 / steps_per_second;
-
   return float_microdelay;
 }
 
+// SETUP -----------------------------------------------------------------------
 void setup() {
 
   Serial.begin(115200);
@@ -131,16 +137,20 @@ void setup() {
   Serial.println("EXIT SETUP");
 }
 
+// LOOP ------------------------------------------------------------------------
 void loop() {
 
-  start_upper_motor();
+  if (update_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
+    if (upper_motor_is_running) {
+      upper_motor_manage_ramp_up();
+    }
+  }
+
+  generate_output_signal();
 
   unsigned long runtime = measure_runtime();
 
   if (print_delay.delay_time_is_up(1500)) {
-
-    Serial.print("START TIME ELAPSED: ");
-    Serial.print(upper_start_time_elapsed);
 
     Serial.print(" CURRENT STEP : ");
     Serial.print(current_step);
