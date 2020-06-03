@@ -20,34 +20,34 @@
 #include <Insomnia.h>
 
 // GLOBAL VARIABLES ------------------------------------------------------------
-const int min_motor_rpm = 200;
-const int max_motor_rpm = 2500;
-const int calculation_resolution = 20;
+
+// SPEED AND TIME SETUP:
+const int min_motor_rpm = 50;
+const int max_motor_rpm = 800;
+unsigned int acceleration_time = 20000; // microseconds from min to max rpm
+
+// MOTOR PARAMETERS:
 const int micro_step_factor = 2;
 const int switches_per_step = 2; // on and off
-int startspeed_microdelay;
-int topspeed_microdelay;
-int int_delay_difference_per_speedlevel;
-unsigned int acceleration_time = 20000; // microseconds from min to max rpm
+const int calculation_resolution = 20;
 const int full_steps_per_turn = 200; // 360/1.8°
 
-int switchdelay_micros_array[calculation_resolution];
-int switchdelay_micros;
-int current_step;
+// VALUES FOR IN LOOP CALCULATIONS:
 
-unsigned long upper_motor_starting_time;
-unsigned long upper_motor_stopping_time;
-unsigned long upper_start_time_elapsed;
-
-bool upper_motor_is_running = true;
-bool upper_motor_started = false;
-int upper_motor_rpm = 0;
-int upper_motor_microdelay;
-
-float float_time_per_speedlevel;
 int int_time_per_speedlevel;
 
-// DECLARE PINS ----------------------------------------------------------------
+int startspeed_microdelay;
+int topspeed_microdelay;
+int delay_difference_per_speedlevel;
+int upper_motor_microdelay;
+
+int current_step;
+
+// STATE FLAGS:
+bool upper_motor_is_running = true;
+bool upper_motor_started = false;
+
+// PINS:
 const byte UPPER_MOTOR_INPUT_PIN = 2;
 const byte UPPER_MOTOR_STEP_PIN = 3;
 
@@ -69,7 +69,7 @@ void upper_motor_manage_ramp_up() {
     upper_motor_microdelay = startspeed_microdelay;
     current_step = 0;
   }
-  upper_motor_microdelay -= int_delay_difference_per_speedlevel;
+  upper_motor_microdelay -= delay_difference_per_speedlevel;
   current_step++;
 
   if (upper_motor_microdelay < topspeed_microdelay) {
@@ -96,7 +96,7 @@ void stop_upper_motor() {}
 // INITIAL CALCULATIONS --------------------------------------------------------
 void make_initial_calculations() {
 
-  float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
+  float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
   int_time_per_speedlevel = int(float_time_per_speedlevel);
   Serial.print("TIME PER SPEEDLEVEL: ");
   Serial.println(float_time_per_speedlevel);
@@ -110,8 +110,8 @@ void make_initial_calculations() {
   Serial.println(topspeed_microdelay);
 
   float delay_difference = startspeed_microdelay - topspeed_microdelay;
-  float delay_difference_per_speedlevel = delay_difference / calculation_resolution;
-  int_delay_difference_per_speedlevel = int(delay_difference_per_speedlevel);
+  float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
+  delay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
 
   float rpm_shift_per_speedlevel;
   rpm_shift_per_speedlevel = float(max_motor_rpm - min_motor_rpm) / calculation_resolution;
@@ -135,6 +135,8 @@ void setup() {
   Serial.println("START CALCULATIONS");
   make_initial_calculations();
   Serial.println("EXIT SETUP");
+  pinMode(UPPER_MOTOR_STEP_PIN,OUTPUT);
+  upper_motor_microdelay = startspeed_microdelay;
 }
 
 // LOOP ------------------------------------------------------------------------
@@ -152,13 +154,13 @@ void loop() {
 
   if (print_delay.delay_time_is_up(1500)) {
 
-    Serial.print(" CURRENT STEP : ");
-    Serial.print(current_step);
+    // Serial.print(" CURRENT STEP : ");
+    // Serial.print(current_step);
 
-    Serial.print("  DELAY: ");
-    Serial.print(upper_motor_microdelay);
+    // Serial.print("  DELAY: ");
+    // Serial.print(upper_motor_microdelay);
 
-    Serial.print("  CODE RUNTIME: ");
-    Serial.println(runtime);
+    // Serial.print("  CODE RUNTIME: ");
+    // Serial.println(runtime);
   }
 }
