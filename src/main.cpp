@@ -21,7 +21,7 @@
 
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 50;
-const int max_motor_rpm = 1000;
+const int max_motor_rpm = 1700;
 unsigned int acceleration_time = 10000; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
@@ -112,7 +112,6 @@ unsigned long measure_runtime() {
   return runtime_elapsed;
 }
 
-
 // INITIAL CALCULATIONS --------------------------------------------------------
 void make_initial_calculations() {
 
@@ -122,11 +121,11 @@ void make_initial_calculations() {
   Serial.println(float_time_per_speedlevel);
 
   startspeed_microdelay = calculate_microdelay(min_motor_rpm);
-  Serial.print("INITIAL DELAY: ");
+  Serial.print("INITIAL MICRO-DELAY: ");
   Serial.println(startspeed_microdelay);
   topspeed_microdelay = calculate_microdelay(max_motor_rpm);
 
-  Serial.print("TOPSPEED DELAY:");
+  Serial.print("TOPSPEED MICRO-DELAY:");
   Serial.println(topspeed_microdelay);
 
   float delay_difference = startspeed_microdelay - topspeed_microdelay;
@@ -151,12 +150,12 @@ float calculate_microdelay(float rpm) {
 // SETUP -----------------------------------------------------------------------
 void setup() {
 
-  // Serial.begin(115200);
-  // Serial.println("START CALCULATIONS");
-  // make_initial_calculations();
-  // Serial.println("EXIT SETUP");
-  // pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
-  // upper_motor_microdelay = startspeed_microdelay;
+  Serial.begin(115200);
+  Serial.println("START CALCULATIONS:");
+  make_initial_calculations();
+  Serial.println("EXIT SETUP");
+  pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
+  upper_motor_microdelay = startspeed_microdelay;
 }
 
 // LOOP ------------------------------------------------------------------------
