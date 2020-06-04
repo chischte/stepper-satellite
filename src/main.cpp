@@ -10,6 +10,8 @@
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * *****************************************************************************
+ * --> SET print_debug_information false WHEN OPERATING
+ * *****************************************************************************
  */
 
 #include <Arduino.h>
@@ -20,9 +22,9 @@
 // GLOBAL VARIABLES ------------------------------------------------------------
 
 // SPEED AND TIME SETUP:
-const int min_motor_rpm = 100;
+const int min_motor_rpm = 100; // min = 10
 const int max_motor_rpm = 2500;
-unsigned int acceleration_time = 1500; // microseconds from min to max rpm
+unsigned int acceleration_time = 10000; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
@@ -37,77 +39,88 @@ int startspeed_microdelay;
 int topspeed_microdelay;
 int microdelay_difference_per_speedlevel;
 int upper_motor_microdelay;
+int lower_motor_microdelay;
 
 int current_step;
 
-// STATE FLAGS:
-bool upper_motor_is_ramping_up = true;
+// STATE FLAGS UPPER MOTOR:
+bool upper_motor_is_running = false;
+bool upper_motor_is_ramping_up = false;
 bool upper_motor_is_ramping_down = false;
-bool upper_motor_ramp_up_started = false;
-bool upper_motor_ramp_down_started = false;
-bool motor_has_stopped = false;
+
+// STATE FLAGS LOWER MOTOR:
+bool lower_motor_is_running = false;
+bool lower_motor_is_ramping_up = false;
+bool lower_motor_is_ramping_down = false;
 
 // PINS:
 const byte UPPER_MOTOR_INPUT_PIN = 10;
 const byte LOWER_MOTOR_INPUT_PIN = 9;
+const byte TEST_SWITCH_PIN = 13;
+Debounce upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
+Debounce lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
+Debounce test_switch_pin(TEST_SWITCH_PIN);
 
 const byte UPPER_MOTOR_STEP_PIN = 5;
 const byte LOWER_MOTOR_STEP_PIN = 6;
 
-// GENERATE OBJECTS ------------------------------------------------------------
+// DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
-Insomnia testing_switch_delay;
 Insomnia update_values_delay;
 Microsomnia upper_motor_switching_delay;
-Debounce upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
-Debounce lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
+Microsomnia lower_motor_switching_delay;
 
 // FUNCTION DECLARARION IF NEEDED FOR THE COMPILER -----------------------------
+
 float calculate_microdelay(float rpm);
 int calculate_current_step_number(unsigned long time_elapsed);
 
-// FUNCTIONS -------------------------------------------------------------------
+// FUNCTIONS *******************************************************************
 
+// CALCULATE UPPER MOTOR SPEED -------------------------------------------------
 void upper_motor_manage_ramp_up() {
-  if (!upper_motor_ramp_up_started) {
-    upper_motor_ramp_up_started = true;
-    upper_motor_ramp_down_started = false;
-    upper_motor_microdelay = startspeed_microdelay;
-    current_step = 0;
-  }
+
   upper_motor_microdelay -= microdelay_difference_per_speedlevel;
   current_step++;
 
   // REACHED TOPSPEED:
   if (upper_motor_microdelay < topspeed_microdelay) {
     upper_motor_microdelay = topspeed_microdelay;
-    // Serial.println("REACHED TOPSPEED");
-      }
-  if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
-    digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
-    digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
   }
 }
 
 void upper_motor_manage_ramp_down() {
-  if (!upper_motor_ramp_down_started) {
-    upper_motor_ramp_down_started = true;
-    upper_motor_ramp_up_started = false;
-    current_step = 0;
-  }
+
   upper_motor_microdelay += microdelay_difference_per_speedlevel;
   current_step++;
 
-  //REACHED MINIMUM SPEED
+  // REACHED MINIMUM SPEED:
   if (upper_motor_microdelay > startspeed_microdelay) {
     upper_motor_microdelay = startspeed_microdelay;
-    upper_motor_is_ramping_up = false;
-    upper_motor_is_ramping_down = false;
-    //Serial.println("MOTOR HAS STOPPED");
+    upper_motor_is_running = false;
   }
-  if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
-    digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
-    digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
+}
+// CALCULATE LOWER MOTOR SPEED -------------------------------------------------
+void lower_motor_manage_ramp_up() {
+
+  lower_motor_microdelay -= microdelay_difference_per_speedlevel;
+  current_step++;
+
+  // REACHED TOPSPEED:
+  if (lower_motor_microdelay < topspeed_microdelay) {
+    lower_motor_microdelay = topspeed_microdelay;
+  }
+}
+
+void lower_motor_manage_ramp_down() {
+
+  lower_motor_microdelay += microdelay_difference_per_speedlevel;
+  current_step++;
+
+  // REACHED MINIMUM SPEED:
+  if (lower_motor_microdelay > startspeed_microdelay) {
+    lower_motor_microdelay = startspeed_microdelay;
+    lower_motor_is_running = false;
   }
 }
 
@@ -153,7 +166,7 @@ float calculate_microdelay(float rpm) {
   return float_microdelay;
 }
 
-// SETUP -----------------------------------------------------------------------
+// SETUP ***********************************************************************
 void setup() {
 
   Serial.begin(115200);
@@ -162,52 +175,99 @@ void setup() {
   Serial.println("EXIT SETUP");
   pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
+  pinMode(TEST_SWITCH_PIN, INPUT_PULLUP);
+  // SET INITIAL SPEED:
   upper_motor_microdelay = startspeed_microdelay;
+  lower_motor_microdelay = startspeed_microdelay;
 }
 
-// LOOP ------------------------------------------------------------------------
+// LOOP ************************************************************************
 void loop() {
 
-  if (upper_motor_input_pin.switchedHigh()){
-upper_motor_is_ramping_up=true;
-upper_motor_is_ramping_down=false;
+  // REACT TO INPUT PIN STATES -------------------------------------------------
+
+// if (test_switch_pin.switchedLow()) {
+//     upper_motor_is_running = true;
+//     upper_motor_is_ramping_up = true;
+//     upper_motor_is_ramping_down = false;
+//   }
+
+  if (test_switch_pin.switchedHigh()) {
+    upper_motor_is_running = true;
+    upper_motor_is_ramping_up = false;
+    upper_motor_is_ramping_down = true;
   }
 
-  if (upper_motor_input_pin.switchedLow()){
-upper_motor_is_ramping_up=false;
-upper_motor_is_ramping_down=true;
+  if (upper_motor_input_pin.switchedHigh()) {
+    upper_motor_is_running = true;
+    upper_motor_is_ramping_up = true;
+    upper_motor_is_ramping_down = false;
   }
 
-    if (lower_motor_input_pin.switchedHigh()){
-upper_motor_is_ramping_up=true;
-upper_motor_is_ramping_down=false;
+  if (upper_motor_input_pin.switchedLow()) {
+    upper_motor_is_running = true;
+    upper_motor_is_ramping_up = false;
+    upper_motor_is_ramping_down = true;
   }
 
-  if (lower_motor_input_pin.switchedLow()){
-upper_motor_is_ramping_up=false;
-upper_motor_is_ramping_down=true;
+  if (lower_motor_input_pin.switchedHigh()) {
+    lower_motor_is_running = true;
+    lower_motor_is_ramping_up = true;
+    lower_motor_is_ramping_down = false;
   }
+
+  if (lower_motor_input_pin.switchedLow()) {
+    lower_motor_is_running = true;
+    lower_motor_is_ramping_up = false;
+    lower_motor_is_ramping_down = true;
+  }
+  // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
   if (update_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
+    // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
       upper_motor_manage_ramp_up();
     }
     if (upper_motor_is_ramping_down) {
       upper_motor_manage_ramp_down();
     }
+    // LOWER MOTOR:
+    if (lower_motor_is_ramping_up) {
+      lower_motor_manage_ramp_up();
+    }
+    if (lower_motor_is_ramping_down) {
+      lower_motor_manage_ramp_down();
+    }
+  }
+  // SWITCH OUTPUTS -----------------------------------------------------------
+
+  if (upper_motor_is_running) {
+    if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
+      digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
+    }
   }
 
-  unsigned long runtime = measure_runtime();
+  if (lower_motor_is_running) {
+    if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
+      digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
+    }
+  }
+  // GET INFORMATION -----------------------------------------------------------
+  
+  bool print_debug_information = true; // --> SET FALSE WHEN OPERATING
+  
+  if (print_debug_information) {
+    unsigned long runtime = measure_runtime();
+    if (print_delay.delay_time_is_up(1500)) {
 
-  if (print_delay.delay_time_is_up(1500)) {
+      Serial.print(" CURRENT STEP : ");
+      Serial.print(current_step);
 
-    Serial.print(" CURRENT STEP : ");
-    Serial.print(current_step);
+      Serial.print("  DELAY: ");
+      Serial.print(upper_motor_microdelay);
 
-    Serial.print("  DELAY: ");
-    Serial.print(upper_motor_microdelay);
-
-    Serial.print("  CODE RUNTIME: ");
-    Serial.println(runtime);
+      Serial.print("  CODE RUNTIME: ");
+      Serial.println(runtime);
+    }
   }
 }
