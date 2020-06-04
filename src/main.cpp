@@ -16,16 +16,17 @@
  */
 
 #include <Arduino.h>
-#include <pin_monitor.h>
 #include <Insomnia.h>
 #include <microsomnia.h>
+#include <pin_monitor.h>
+
 
 // GLOBAL VARIABLES ------------------------------------------------------------
 
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 100; // min = 10
 const int max_motor_rpm = 2500;
-unsigned int acceleration_time = 10000; // microseconds from min to max rpm
+unsigned int acceleration_time = 5000; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
@@ -57,7 +58,7 @@ bool lower_motor_is_ramping_down = false;
 // PINS:
 const byte UPPER_MOTOR_INPUT_PIN = 10;
 const byte LOWER_MOTOR_INPUT_PIN = 9;
-const byte TEST_SWITCH_PIN = 13;
+const byte TEST_SWITCH_PIN = 11;
 Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
 Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
 Pin_monitor test_switch_pin(TEST_SWITCH_PIN);
@@ -184,40 +185,42 @@ void setup() {
 
 // LOOP ************************************************************************
 void loop() {
-
+//Serial.println(digitalRead(TEST_SWITCH_PIN));
   // REACT TO INPUT PIN STATES -------------------------------------------------
 
-// if (test_switch_pin.switchedLow()) {
-//     upper_motor_is_running = true;
-//     upper_motor_is_ramping_up = true;
-//     upper_motor_is_ramping_down = false;
-//   }
+  if (test_switch_pin.switched_low()) {
+      upper_motor_is_running = true;
+      upper_motor_is_ramping_up = true;
+      upper_motor_is_ramping_down = false;
+      Serial.println("SWITCHED HIGH");
+    }
 
-  if (test_switch_pin.switchedHigh()) {
+  if (test_switch_pin.switched_high()) {
     upper_motor_is_running = true;
     upper_motor_is_ramping_up = false;
     upper_motor_is_ramping_down = true;
+     Serial.println("SWITCHED LOW");
   }
 
-  if (upper_motor_input_pin.switchedHigh()) {
-    upper_motor_is_running = true;
-    upper_motor_is_ramping_up = true;
-    upper_motor_is_ramping_down = false;
-  }
+  // if (upper_motor_input_pin.switched_high()) {
+  //   upper_motor_is_running = true;
+  //   upper_motor_is_ramping_up = true;
+  //   upper_motor_is_ramping_down = false;
+  // }
 
-  if (upper_motor_input_pin.switchedLow()) {
-    upper_motor_is_running = true;
-    upper_motor_is_ramping_up = false;
-    upper_motor_is_ramping_down = true;
-  }
+  // if (upper_motor_input_pin.switched_low()) {
+  //   upper_motor_is_running = true;
+  //   upper_motor_is_ramping_up = false;
+  //   upper_motor_is_ramping_down = true;
+  // }
 
-  if (lower_motor_input_pin.switchedHigh()) {
+  if (lower_motor_input_pin.switched_high()) {
     lower_motor_is_running = true;
     lower_motor_is_ramping_up = true;
     lower_motor_is_ramping_down = false;
   }
 
-  if (lower_motor_input_pin.switchedLow()) {
+  if (lower_motor_input_pin.switched_low()) {
     lower_motor_is_running = true;
     lower_motor_is_ramping_up = false;
     lower_motor_is_ramping_down = true;
@@ -254,12 +257,12 @@ void loop() {
     }
   }
   // GET INFORMATION -----------------------------------------------------------
-  
+
   bool print_debug_information = true; // --> SET FALSE WHEN OPERATING
-  
+
   if (print_debug_information) {
     unsigned long runtime = measure_runtime();
-    if (print_delay.delay_time_is_up(1500)) {
+    if (print_delay.delay_time_is_up(1000)) {
 
       Serial.print(" CURRENT STEP : ");
       Serial.print(current_step);

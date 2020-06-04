@@ -4,68 +4,49 @@
  * *****************************************************************************
  */
 
-#include "Arduino.h"
 #include "pin_monitor.h"
+#include "Arduino.h"
 
-Pin_monitor::Pin_monitor(const byte BUTTON_PIN) {
-  _BUTTON_PIN = BUTTON_PIN;
-}
+Pin_monitor::Pin_monitor(const byte BUTTON_PIN) { _BUTTON_PIN = BUTTON_PIN; }
 //***************************************************************************
 //LIBRARY FUNCTIONS:
 //***************************************************************************
 
-void Pin_monitor::setDebounceTime(int debounceTime) {
-  _debounceTime = debounceTime;
-}
+bool Pin_monitor::request_button_state() {
 
-bool Pin_monitor::requestButtonState() {
+  _current_button_state = digitalRead(_BUTTON_PIN);
 
-  _currentButtonState = digitalRead(_BUTTON_PIN);
+  if (_current_button_state == !_previous_button_state) {
 
-  // DETECT IF THE BUTTON STATE HAS CHANGED:
-  if (_currentButtonState != _debouncedButtonState && _debounceTimerSet == false) {
-    // IN THE FIRST RUN,SET THE DEBOUNCE TIMER:
-    _prevTime = millis();
-    _debounceTimerSet = true;
-  }
-  // IF THE DEBOUNCE TIME'S UP AND THE SWITCH HAS STILL THE SAME (CHANGED) BUTTON STATE,
-  // THEN THE CHANGED BUTTON STATE IS VALID:
-  if (millis() - _prevTime > _debounceTime) {
-    _debounceTimerSet = false;
-    if (_currentButtonState != _debouncedButtonState) {
-      _debouncedButtonState = _currentButtonState;
-
-      // IF THE VALID NEW BUTTON STATE IS HIGH, THEN A SWITCH TO HIGH HAS HAPPEND:
-      if (_debouncedButtonState == HIGH) {
-        _buttonSwitchedHigh = true;
-        _buttonSwitchedLow = false;
-      }
-
-      // IF THE VALID NEW BUTTON STATE IS LOW; THEN A SWICH TO LOW HAS HAPPEND:
-      if (_debouncedButtonState == LOW) {
-        _buttonSwitchedLow = true;
-        _buttonSwitchedHigh = false;
-      }
-
+    // A SWITCH TO HIGH HAS HAPPEND:
+    if (_current_button_state == HIGH) {
+      _button_switched_high = true;
+      _button_switched_low = false;
     }
+
+    // A SWICH TO LOW HAS HAPPEND:
+    if (_current_button_state == LOW) {
+      _button_switched_low = true;
+      _button_switched_high = false;
+    }
+
+    _previous_button_state = _current_button_state;
   }
-  return _currentButtonState;
+  return _current_button_state;
 }
 
-bool Pin_monitor::switchedHigh() {
-  Pin_monitor::requestButtonState();
+bool Pin_monitor::switched_high() {
+  Pin_monitor::request_button_state();
 
-  //RETURN THE INFORMATION IF THE BUTTON HAS SWITCHED HIGH, AND RESET IT:
-  bool switchedHigh = _buttonSwitchedHigh;
-  _buttonSwitchedHigh = false;
+  bool switchedHigh = _button_switched_high;
+  _button_switched_high = false;
   return switchedHigh;
 }
 
-bool Pin_monitor::switchedLow() {
-  Pin_monitor::requestButtonState();
+bool Pin_monitor::switched_low() {
+  Pin_monitor::request_button_state();
 
-  //RETURN THE INFORMATION IF THE BUTTON HAS SWITCHED LOW, AND RESET IT:
-  bool switchedLow = _buttonSwitchedLow;
-  _buttonSwitchedLow = false;
+  bool switchedLow = _button_switched_low;
+  _button_switched_low = false;
   return switchedLow;
 }
