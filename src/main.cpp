@@ -33,14 +33,14 @@
 // GLOBAL VARIABLES ------------------------------------------------------------
 
 // SPEED AND TIME SETUP:
-const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
-const int max_motor_rpm = 1000; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 5000; // microseconds from min to max rpm
+const int min_motor_rpm = 50; // min = 10 (calculation algorithm)
+const int max_motor_rpm = 1500; // Motor max = 1750 (specification)
+unsigned int acceleration_time = 100; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
 const int switches_per_step = 2; // on and off
-const int calculation_resolution = 20;
+const int calculation_resolution = 50;
 const int full_steps_per_turn = 200; // 360/1.8°
 
 // VALUES FOR IN LOOP CALCULATIONS:
