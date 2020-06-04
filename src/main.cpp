@@ -11,8 +11,8 @@
  * *****************************************************************************
  * 
  * RUNTIME:
- * Measured runtime: 80 (16micros before implementing input reads and maybe 2nd motor) 
- * Resulting max rpm: 937 (4687RPM@16Micros)
+ * Measured runtime: 79 (substracted 5us for serial print insomnia-delay)
+ * Resulting max rpm: 949
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * COSTS:
@@ -281,7 +281,7 @@ void loop() {
       //Serial.print(upper_motor_microdelay);
 
       //Serial.print("  CODE RUNTIME: ");
-      //Serial.println(runtime);
+      Serial.println(runtime);
     }
   }
 }
