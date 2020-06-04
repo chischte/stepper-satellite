@@ -4,12 +4,21 @@
  * *****************************************************************************
  * Generates stepper signals using an Arduino 
  * *****************************************************************************
+ * TODO:
+ * Optimise runtime !!!
+ * *****************************************************************************
+ * 
  * RUNTIME:
- * Measured runtime: 16micros 
- * Resulting max rpm: 4687RPM
+ * Measured runtime: 80 (16micros before implementing input reads and maybe 2nd motor) 
+ * Resulting max rpm: 937 (4687RPM@16Micros)
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
- * A DEBOUNCE COSTS 12us!
+ * COSTS:
+ * 12us for a debounce (removed)
+ * 10us for a pin monitoring
+ * 6us for a digital read
+ * 5us for a digitalWrite
+ * 5us for a insomnia-delay
  * *****************************************************************************
  * --> SET print_debug_information false WHEN OPERATING
  * *****************************************************************************
@@ -20,12 +29,11 @@
 #include <microsomnia.h>
 #include <pin_monitor.h>
 
-
 // GLOBAL VARIABLES ------------------------------------------------------------
 
 // SPEED AND TIME SETUP:
-const int min_motor_rpm = 100; // min = 10
-const int max_motor_rpm = 2500;
+const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
+const int max_motor_rpm = 1000; // Motor max = 1750 (specification)
 unsigned int acceleration_time = 5000; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
@@ -185,34 +193,34 @@ void setup() {
 
 // LOOP ************************************************************************
 void loop() {
-//Serial.println(digitalRead(TEST_SWITCH_PIN));
+  //Serial.println(digitalRead(TEST_SWITCH_PIN));
   // REACT TO INPUT PIN STATES -------------------------------------------------
 
-  if (test_switch_pin.switched_low()) {
-      upper_motor_is_running = true;
-      upper_motor_is_ramping_up = true;
-      upper_motor_is_ramping_down = false;
-      Serial.println("SWITCHED HIGH");
-    }
+  // if (test_switch_pin.switched_low()) {
+  //     upper_motor_is_running = true;
+  //     upper_motor_is_ramping_up = true;
+  //     upper_motor_is_ramping_down = false;
+  //     Serial.println("SWITCHED HIGH");
+  //   }
 
-  if (test_switch_pin.switched_high()) {
-    upper_motor_is_running = true;
-    upper_motor_is_ramping_up = false;
-    upper_motor_is_ramping_down = true;
-     Serial.println("SWITCHED LOW");
-  }
-
-  // if (upper_motor_input_pin.switched_high()) {
-  //   upper_motor_is_running = true;
-  //   upper_motor_is_ramping_up = true;
-  //   upper_motor_is_ramping_down = false;
-  // }
-
-  // if (upper_motor_input_pin.switched_low()) {
+  // if (test_switch_pin.switched_high()) {
   //   upper_motor_is_running = true;
   //   upper_motor_is_ramping_up = false;
   //   upper_motor_is_ramping_down = true;
+  //    Serial.println("SWITCHED LOW");
   // }
+
+  if (upper_motor_input_pin.switched_high()) {
+    upper_motor_is_running = true;
+    upper_motor_is_ramping_up = true;
+    upper_motor_is_ramping_down = false;
+  }
+
+  if (upper_motor_input_pin.switched_low()) {
+    upper_motor_is_running = true;
+    upper_motor_is_ramping_up = false;
+    upper_motor_is_ramping_down = true;
+  }
 
   if (lower_motor_input_pin.switched_high()) {
     lower_motor_is_running = true;
@@ -264,14 +272,14 @@ void loop() {
     unsigned long runtime = measure_runtime();
     if (print_delay.delay_time_is_up(1000)) {
 
-      Serial.print(" CURRENT STEP : ");
-      Serial.print(current_step);
+      //Serial.print(" CURRENT STEP : ");
+      //Serial.print(current_step);
 
-      Serial.print("  DELAY: ");
-      Serial.print(upper_motor_microdelay);
+      //Serial.print("  DELAY: ");
+      //Serial.print(upper_motor_microdelay);
 
-      Serial.print("  CODE RUNTIME: ");
-      Serial.println(runtime);
+      //Serial.print("  CODE RUNTIME: ");
+      //Serial.println(runtime);
     }
   }
 }
