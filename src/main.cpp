@@ -36,8 +36,10 @@
 // GLOBAL VARIABLES ------------------------------------------------------------
 
 // --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
+
 int debug_mode = false;
 //int debug_mode = true;
+
 // --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
 
 // SPEED AND TIME SETUP:
@@ -76,9 +78,6 @@ bool lower_motor_is_ramping_down = false;
 const byte UPPER_MOTOR_INPUT_PIN = 10; // PB2
 const byte LOWER_MOTOR_INPUT_PIN = 9; //  PB1
 const byte TEST_SWITCH_PIN = 11; // PB3
-Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
-Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
-Pin_monitor test_switch_pin(TEST_SWITCH_PIN);
 
 const byte UPPER_MOTOR_STEP_PIN = 5; //PD5
 const byte LOWER_MOTOR_STEP_PIN = 6; //PD6
@@ -119,6 +118,7 @@ void upper_motor_manage_ramp_down() {
     upper_motor_is_running = false;
   }
 }
+
 // CALCULATE LOWER MOTOR SPEED -------------------------------------------------
 void lower_motor_manage_ramp_up() {
 
@@ -194,8 +194,8 @@ void setup() {
   Serial.println("EXIT SETUP");
   pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
-  pinMode(TEST_SWITCH_PIN, INPUT_PULLUP);
-  pinMode(50, INPUT_PULLUP);
+  pinMode(TEST_SWITCH_PIN, INPUT_PULLUP); // for mega only
+  pinMode(50, INPUT_PULLUP); // for mega only
   // SET INITIAL SPEED:
   upper_motor_microdelay = startspeed_microdelay;
   lower_motor_microdelay = startspeed_microdelay;
@@ -207,7 +207,7 @@ void loop() {
   // REACT TO INPUT PIN STATES -------------------------------------------------
   if (debug_mode) {
     // DEBUG SWITCH (BOTH MOTORS):
-    if ((PINB & _BV(PINB3)) == 0) {
+    if ((PINB & _BV(PINB3)) == 0) { // inverted for pullup
       upper_motor_is_ramping_up = true;
       upper_motor_is_ramping_down = false;
       upper_motor_is_running = true;
@@ -228,7 +228,7 @@ void loop() {
   //----------------------------------
   if (!debug_mode) {
     // UPPER MOTOR:
-    if ((PINB & _BV(PINB2)) == 0) {
+    if (PINB & _BV(PINB2)) {
       upper_motor_is_ramping_up = true;
       upper_motor_is_ramping_down = false;
       upper_motor_is_running = true;
@@ -237,7 +237,7 @@ void loop() {
       upper_motor_is_ramping_down = true;
     }
     // LOWER MOTOR:
-    if ((PINB & _BV(PINB1)) == 0) {
+    if (PINB & _BV(PINB1)) {
       lower_motor_is_ramping_up = true;
       lower_motor_is_ramping_down = false;
       lower_motor_is_running = true;
