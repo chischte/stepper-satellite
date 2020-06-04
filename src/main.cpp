@@ -7,6 +7,7 @@
  * TODO:
  * Optimise runtime (fast version) !!!
  * Measure effective speed
+ * https://baremetalmicro.com/tutorial_avr_digital_io/index.html
  * https://github.com/NicksonYap/digitalWriteFast
  * *****************************************************************************
  * 
@@ -72,7 +73,7 @@ bool lower_motor_is_ramping_down = false;
 // PINS:
 const byte UPPER_MOTOR_INPUT_PIN = 10; // PB2
 const byte LOWER_MOTOR_INPUT_PIN = 9; //  PB1
-const byte TEST_SWITCH_PIN = 11;
+const byte TEST_SWITCH_PIN = 11; // PB3
 Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
 Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
 Pin_monitor test_switch_pin(TEST_SWITCH_PIN);
@@ -192,6 +193,7 @@ void setup() {
   pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(TEST_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(50, INPUT_PULLUP);
   // SET INITIAL SPEED:
   upper_motor_microdelay = startspeed_microdelay;
   lower_motor_microdelay = startspeed_microdelay;
@@ -203,29 +205,20 @@ void loop() {
   // REACT TO INPUT PIN STATES -------------------------------------------------
   if (debug_mode) {
     // DEBUG SWITCH (BOTH MOTORS):
-    if (test_switch_pin.switched_low()) {
-      upper_motor_is_running = true;
+    if ((PINB & _BV(PINB3)) == 0) {
       upper_motor_is_ramping_up = true;
-      upper_motor_is_ramping_down = false;
-      lower_motor_is_running = true;
-      lower_motor_is_ramping_up = true;
-      lower_motor_is_ramping_down = false;
-      Serial.println("SWITCHED HIGH");
-    }
-
-    if (test_switch_pin.switched_high()) {
       upper_motor_is_running = true;
-      upper_motor_is_ramping_up = false;
-      upper_motor_is_ramping_down = true;
+      lower_motor_is_ramping_up = true;
       lower_motor_is_running = true;
-      lower_motor_is_ramping_up = false;
+    } else {
+      upper_motor_is_ramping_down = true;
       lower_motor_is_ramping_down = true;
-      Serial.println("SWITCHED LOW");
     }
 
-    lower_motor_input_pin.switched_high(); // FOR RUNTIME MEASUREMENT
-    lower_motor_input_pin.switched_low(); // FOR RUNTIME MEASUREMENT
+    if (PINB & _BV(PINB3)) {
+    } // FOR RUNTIME MEASUREMENT
   }
+
   //----------------------------------
   if (!debug_mode) {
     // UPPER MOTOR:
