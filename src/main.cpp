@@ -34,6 +34,9 @@
 
 // GLOBAL VARIABLES ------------------------------------------------------------
 
+//int debug_mode = false;
+int debug_mode = true;
+
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 50; // min = 10 (calculation algorithm)
 const int max_motor_rpm = 1500; // Motor max = 1750 (specification)
@@ -198,57 +201,58 @@ void setup() {
 void loop() {
   //Serial.println(digitalRead(TEST_SWITCH_PIN));
   // REACT TO INPUT PIN STATES -------------------------------------------------
+  if (debug_mode) {
+    // DEBUG SWITCH (BOTH MOTORS):
+    if (test_switch_pin.switched_low()) {
+      upper_motor_is_running = true;
+      upper_motor_is_ramping_up = true;
+      upper_motor_is_ramping_down = false;
+      lower_motor_is_running = true;
+      lower_motor_is_ramping_up = true;
+      lower_motor_is_ramping_down = false;
+      Serial.println("SWITCHED HIGH");
+    }
 
-  // // DEBUG SWITCH (BOTH MOTORS):
-  // if (test_switch_pin.switched_low()) {
-  //   upper_motor_is_running = true;
-  //   upper_motor_is_ramping_up = true;
-  //   upper_motor_is_ramping_down = false;
-  //   lower_motor_is_running = true;
-  //   lower_motor_is_ramping_up = true;
-  //   lower_motor_is_ramping_down = false;
-  //   Serial.println("SWITCHED HIGH");
-  // }
+    if (test_switch_pin.switched_high()) {
+      upper_motor_is_running = true;
+      upper_motor_is_ramping_up = false;
+      upper_motor_is_ramping_down = true;
+      lower_motor_is_running = true;
+      lower_motor_is_ramping_up = false;
+      lower_motor_is_ramping_down = true;
+      Serial.println("SWITCHED LOW");
+    }
 
-  // if (test_switch_pin.switched_high()) {
-  //   upper_motor_is_running = true;
-  //   upper_motor_is_ramping_up = false;
-  //   upper_motor_is_ramping_down = true;
-  //   lower_motor_is_running = true;
-  //   lower_motor_is_ramping_up = false;
-  //   lower_motor_is_ramping_down = true;
-  //   Serial.println("SWITCHED LOW");
-  // }
-
-  // lower_motor_input_pin.switched_high(); // FOR RUNTIME MEASUREMENT
-  // lower_motor_input_pin.switched_low(); // FOR RUNTIME MEASUREMENT
+    lower_motor_input_pin.switched_high(); // FOR RUNTIME MEASUREMENT
+    lower_motor_input_pin.switched_low(); // FOR RUNTIME MEASUREMENT
+  }
   //----------------------------------
+  if (!debug_mode) {
+    // UPPER MOTOR:
+    if (upper_motor_input_pin.switched_high()) {
+      upper_motor_is_running = true;
+      upper_motor_is_ramping_up = true;
+      upper_motor_is_ramping_down = false;
+    }
 
-  ///*   // UPPER MOTOR:
-  if (upper_motor_input_pin.switched_high()) {
-    upper_motor_is_running = true;
-    upper_motor_is_ramping_up = true;
-    upper_motor_is_ramping_down = false;
+    if (upper_motor_input_pin.switched_low()) {
+      upper_motor_is_running = true;
+      upper_motor_is_ramping_up = false;
+      upper_motor_is_ramping_down = true;
+    }
+    // LOWER MOTOR:
+    if (lower_motor_input_pin.switched_high()) {
+      lower_motor_is_running = true;
+      lower_motor_is_ramping_up = true;
+      lower_motor_is_ramping_down = false;
+    }
+
+    if (lower_motor_input_pin.switched_low()) {
+      lower_motor_is_running = true;
+      lower_motor_is_ramping_up = false;
+      lower_motor_is_ramping_down = true;
+    }
   }
-
-  if (upper_motor_input_pin.switched_low()) {
-    upper_motor_is_running = true;
-    upper_motor_is_ramping_up = false;
-    upper_motor_is_ramping_down = true;
-  }
-  // LOWER MOTOR:
-  if (lower_motor_input_pin.switched_high()) {
-    lower_motor_is_running = true;
-    lower_motor_is_ramping_up = true;
-    lower_motor_is_ramping_down = false;
-  }
-
-  if (lower_motor_input_pin.switched_low()) {
-    lower_motor_is_running = true;
-    lower_motor_is_ramping_up = false;
-    lower_motor_is_ramping_down = true;
-  } // */
-
   // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
   if (update_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
@@ -284,19 +288,17 @@ void loop() {
   }
   // GET INFORMATION -----------------------------------------------------------
 
-  bool print_debug_information = false; // --> SET FALSE WHEN OPERATING
-
-  if (print_debug_information) {
+  if (debug_mode) {
     unsigned long runtime = measure_runtime();
     if (print_delay.delay_time_is_up(1000)) {
 
-      //Serial.print(" CURRENT STEP : ");
-      //Serial.print(current_step);
+      Serial.print(" CURRENT STEP : ");
+      Serial.print(current_step);
 
-      //Serial.print("  DELAY: ");
-      //Serial.print(upper_motor_microdelay);
+      Serial.print("  DELAY: ");
+      Serial.print(upper_motor_microdelay);
 
-      //Serial.print("  CODE RUNTIME: ");
+      Serial.print("  CODE RUNTIME: ");
       Serial.println(runtime);
     }
   }
