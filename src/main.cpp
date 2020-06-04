@@ -12,9 +12,9 @@
  * *****************************************************************************
  * 
  * RUNTIME:
- * Measured runtime: 67us**
- * ** added 7us to measurement --> -5us for an insomnia-delay, + 12us when running
- * Resulting max rpm: 1119
+ * Measured runtime: 35us**
+ * **  --> substracted 5us for an insomnia-delay
+ * Resulting max rpm: 2142
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * COSTS:
@@ -35,13 +35,15 @@
 
 // GLOBAL VARIABLES ------------------------------------------------------------
 
-//int debug_mode = false;
-int debug_mode = true;
+// --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
+int debug_mode = false;
+//int debug_mode = true;
+// --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
 
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 50; // min = 10 (calculation algorithm)
 const int max_motor_rpm = 1500; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 100; // microseconds from min to max rpm
+unsigned int acceleration_time = 5000; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
@@ -78,8 +80,8 @@ Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
 Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
 Pin_monitor test_switch_pin(TEST_SWITCH_PIN);
 
-const byte UPPER_MOTOR_STEP_PIN = 5;
-const byte LOWER_MOTOR_STEP_PIN = 6;
+const byte UPPER_MOTOR_STEP_PIN = 5; //PD5
+const byte LOWER_MOTOR_STEP_PIN = 6; //PD6
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
@@ -96,8 +98,8 @@ int calculate_current_step_number(unsigned long time_elapsed);
 
 // CALCULATE UPPER MOTOR SPEED -------------------------------------------------
 void upper_motor_manage_ramp_up() {
-
   upper_motor_microdelay -= microdelay_difference_per_speedlevel;
+  //Serial.println("RAMP UP");
   current_step++;
 
   // REACHED TOPSPEED:
@@ -107,7 +109,7 @@ void upper_motor_manage_ramp_up() {
 }
 
 void upper_motor_manage_ramp_down() {
-
+  //Serial.println("RAMP DOWN");
   upper_motor_microdelay += microdelay_difference_per_speedlevel;
   current_step++;
 
@@ -201,17 +203,21 @@ void setup() {
 
 // LOOP ************************************************************************
 void loop() {
-  //Serial.println(digitalRead(TEST_SWITCH_PIN));
+
   // REACT TO INPUT PIN STATES -------------------------------------------------
   if (debug_mode) {
     // DEBUG SWITCH (BOTH MOTORS):
     if ((PINB & _BV(PINB3)) == 0) {
       upper_motor_is_ramping_up = true;
+      upper_motor_is_ramping_down = false;
       upper_motor_is_running = true;
       lower_motor_is_ramping_up = true;
+      lower_motor_is_ramping_down = false;
       lower_motor_is_running = true;
     } else {
+      upper_motor_is_ramping_up = false;
       upper_motor_is_ramping_down = true;
+      lower_motor_is_ramping_up = false;
       lower_motor_is_ramping_down = true;
     }
 
@@ -222,26 +228,20 @@ void loop() {
   //----------------------------------
   if (!debug_mode) {
     // UPPER MOTOR:
-    if (upper_motor_input_pin.switched_high()) {
-      upper_motor_is_running = true;
+    if ((PINB & _BV(PINB2)) == 0) {
       upper_motor_is_ramping_up = true;
       upper_motor_is_ramping_down = false;
-    }
-
-    if (upper_motor_input_pin.switched_low()) {
       upper_motor_is_running = true;
+    } else {
       upper_motor_is_ramping_up = false;
       upper_motor_is_ramping_down = true;
     }
     // LOWER MOTOR:
-    if (lower_motor_input_pin.switched_high()) {
-      lower_motor_is_running = true;
+    if ((PINB & _BV(PINB1)) == 0) {
       lower_motor_is_ramping_up = true;
       lower_motor_is_ramping_down = false;
-    }
-
-    if (lower_motor_input_pin.switched_low()) {
       lower_motor_is_running = true;
+    } else {
       lower_motor_is_ramping_up = false;
       lower_motor_is_ramping_down = true;
     }
@@ -268,14 +268,14 @@ void loop() {
 
   if (upper_motor_is_running) {
     if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
-      PORTB ^= _BV(PB2); // NANO PIN 10
+      PORTD ^= _BV(PD5); // NANO PIN 10
       //digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
     }
   }
 
   if (lower_motor_is_running) {
     if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
-      PORTB ^= _BV(PB1); // NANO PIN 9
+      PORTD ^= _BV(PD6); // NANO PIN 9
       //digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
     }
   }
@@ -284,6 +284,9 @@ void loop() {
   if (debug_mode) {
     unsigned long runtime = measure_runtime();
     if (print_delay.delay_time_is_up(1000)) {
+
+      Serial.print("  MOTOR RUNNING: ");
+      Serial.print(upper_motor_is_running);
 
       Serial.print(" CURRENT STEP : ");
       Serial.print(current_step);
