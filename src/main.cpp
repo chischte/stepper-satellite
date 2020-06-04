@@ -11,8 +11,9 @@
  * *****************************************************************************
  * 
  * RUNTIME:
- * Measured runtime: 80 (16micros before implementing input reads and maybe 2nd motor) 
- * Resulting max rpm: 937 (4687RPM@16Micros)
+ * Measured runtime: 67us**
+ * ** added 7us to measurement --> -5us for an insomnia-delay, + 12us when running
+ * Resulting max rpm: 1119
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * COSTS:
@@ -66,8 +67,8 @@ bool lower_motor_is_ramping_up = false;
 bool lower_motor_is_ramping_down = false;
 
 // PINS:
-const byte UPPER_MOTOR_INPUT_PIN = 10;
-const byte LOWER_MOTOR_INPUT_PIN = 9;
+const byte UPPER_MOTOR_INPUT_PIN = 10; // PB2
+const byte LOWER_MOTOR_INPUT_PIN = 9; //  PB1
 const byte TEST_SWITCH_PIN = 11;
 Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
 Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
@@ -198,20 +199,32 @@ void loop() {
   //Serial.println(digitalRead(TEST_SWITCH_PIN));
   // REACT TO INPUT PIN STATES -------------------------------------------------
 
+  // // DEBUG SWITCH (BOTH MOTORS):
   // if (test_switch_pin.switched_low()) {
-  //     upper_motor_is_running = true;
-  //     upper_motor_is_ramping_up = true;
-  //     upper_motor_is_ramping_down = false;
-  //     Serial.println("SWITCHED HIGH");
-  //   }
+  //   upper_motor_is_running = true;
+  //   upper_motor_is_ramping_up = true;
+  //   upper_motor_is_ramping_down = false;
+  //   lower_motor_is_running = true;
+  //   lower_motor_is_ramping_up = true;
+  //   lower_motor_is_ramping_down = false;
+  //   Serial.println("SWITCHED HIGH");
+  // }
 
   // if (test_switch_pin.switched_high()) {
   //   upper_motor_is_running = true;
   //   upper_motor_is_ramping_up = false;
   //   upper_motor_is_ramping_down = true;
-  //    Serial.println("SWITCHED LOW");
+  //   lower_motor_is_running = true;
+  //   lower_motor_is_ramping_up = false;
+  //   lower_motor_is_ramping_down = true;
+  //   Serial.println("SWITCHED LOW");
   // }
 
+  // lower_motor_input_pin.switched_high(); // FOR RUNTIME MEASUREMENT
+  // lower_motor_input_pin.switched_low(); // FOR RUNTIME MEASUREMENT
+  //----------------------------------
+
+  ///*   // UPPER MOTOR:
   if (upper_motor_input_pin.switched_high()) {
     upper_motor_is_running = true;
     upper_motor_is_ramping_up = true;
@@ -223,7 +236,7 @@ void loop() {
     upper_motor_is_ramping_up = false;
     upper_motor_is_ramping_down = true;
   }
-
+  // LOWER MOTOR:
   if (lower_motor_input_pin.switched_high()) {
     lower_motor_is_running = true;
     lower_motor_is_ramping_up = true;
@@ -234,7 +247,8 @@ void loop() {
     lower_motor_is_running = true;
     lower_motor_is_ramping_up = false;
     lower_motor_is_ramping_down = true;
-  }
+  } // */
+
   // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
   if (update_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
@@ -257,13 +271,15 @@ void loop() {
 
   if (upper_motor_is_running) {
     if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
-      digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
+      PORTB ^= _BV(PB2); // NANO PIN 10
+      //digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
     }
   }
 
   if (lower_motor_is_running) {
     if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
-      digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
+      PORTB ^= _BV(PB1); // NANO PIN 9
+      //digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
     }
   }
   // GET INFORMATION -----------------------------------------------------------
@@ -281,7 +297,7 @@ void loop() {
       //Serial.print(upper_motor_microdelay);
 
       //Serial.print("  CODE RUNTIME: ");
-      //Serial.println(runtime);
+      Serial.println(runtime);
     }
   }
 }
