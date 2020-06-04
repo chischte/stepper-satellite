@@ -9,13 +9,14 @@
  * Resulting max rpm: 4687RPM
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
+ * A DEBOUNCE COSTS 12us!
  * *****************************************************************************
  * --> SET print_debug_information false WHEN OPERATING
  * *****************************************************************************
  */
 
 #include <Arduino.h>
-#include <Debounce.h>
+#include <pin_monitor.h>
 #include <Insomnia.h>
 #include <microsomnia.h>
 
@@ -57,9 +58,9 @@ bool lower_motor_is_ramping_down = false;
 const byte UPPER_MOTOR_INPUT_PIN = 10;
 const byte LOWER_MOTOR_INPUT_PIN = 9;
 const byte TEST_SWITCH_PIN = 13;
-Debounce upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
-Debounce lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
-Debounce test_switch_pin(TEST_SWITCH_PIN);
+Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
+Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
+Pin_monitor test_switch_pin(TEST_SWITCH_PIN);
 
 const byte UPPER_MOTOR_STEP_PIN = 5;
 const byte LOWER_MOTOR_STEP_PIN = 6;
