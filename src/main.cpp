@@ -5,7 +5,8 @@
  * Generates stepper signals using an Arduino 
  * *****************************************************************************
  * TODO:
- * Optimise runtime !!!
+ * Optimise runtime (fast version) !!!
+ * Measure effective speed
  * https://github.com/NicksonYap/digitalWriteFast
  * *****************************************************************************
  * 
@@ -267,7 +268,7 @@ void loop() {
   }
   // GET INFORMATION -----------------------------------------------------------
 
-  bool print_debug_information = true; // --> SET FALSE WHEN OPERATING
+  bool print_debug_information = false; // --> SET FALSE WHEN OPERATING
 
   if (print_debug_information) {
     unsigned long runtime = measure_runtime();
