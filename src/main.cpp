@@ -46,7 +46,13 @@ int avg_runtime_us = 0;
 bool measure_runtime;
 
 // INITIAL CALCULATIONS:
-int int_cycles_per_speedlevel;
+int cycles_4us_per_speedlevel;
+
+// INTERRUPT COUNTER:
+volatile unsigned int us_counter_param_updater = 0;
+volatile unsigned int us_counter_upper_switcher = 0;
+volatile unsigned int us_counter_lower_switcher = 0;
+unsigned int us_counter_interval = 4; // microseconds [us]
 
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
@@ -62,11 +68,11 @@ const int full_steps_per_turn = 200; // 360/1.8°
 // VALUES FOR IN LOOP CALCULATIONS:
 int int_time_per_speedlevel;
 
-int startspeed_microdelay;
-int topspeed_microdelay;
-int microdelay_difference_per_speedlevel;
-int upper_motor_microdelay;
-int lower_motor_microdelay;
+int startspeed_4us_delay;
+int topspeed_4us_delay;
+int delay_difference_in_4us_per_speedlevel;
+int upper_motor_4us_delay;
+int lower_motor_4us_delay;
 
 int current_step;
 
@@ -96,7 +102,7 @@ Microsomnia lower_motor_switching_delay;
 
 // FUNCTION DECLARARION IF NEEDED FOR THE COMPILER -----------------------------
 
-float calculate_microdelay(float rpm);
+float calculate_4us_delay_from_rpm(float rpm);
 int calculate_current_step_number(unsigned long time_elapsed);
 void stepper_loop();
 
@@ -104,24 +110,24 @@ void stepper_loop();
 
 // CALCULATE UPPER MOTOR SPEED -------------------------------------------------
 void upper_motor_manage_ramp_up() {
-  upper_motor_microdelay -= microdelay_difference_per_speedlevel;
+  upper_motor_4us_delay -= delay_difference_in_4us_per_speedlevel;
   //Serial.println("RAMP UP");
   current_step++;
 
   // REACHED TOPSPEED:
-  if (upper_motor_microdelay < topspeed_microdelay) {
-    upper_motor_microdelay = topspeed_microdelay;
+  if (upper_motor_4us_delay < topspeed_4us_delay) {
+    upper_motor_4us_delay = topspeed_4us_delay;
   }
 }
 
 void upper_motor_manage_ramp_down() {
   //Serial.println("RAMP DOWN");
-  upper_motor_microdelay += microdelay_difference_per_speedlevel;
+  upper_motor_4us_delay += delay_difference_in_4us_per_speedlevel;
   current_step++;
 
   // REACHED MINIMUM SPEED:
-  if (upper_motor_microdelay > startspeed_microdelay) {
-    upper_motor_microdelay = startspeed_microdelay;
+  if (upper_motor_4us_delay > startspeed_4us_delay) {
+    upper_motor_4us_delay = startspeed_4us_delay;
     upper_motor_is_running = false;
   }
 }
@@ -129,23 +135,23 @@ void upper_motor_manage_ramp_down() {
 // CALCULATE LOWER MOTOR SPEED -------------------------------------------------
 void lower_motor_manage_ramp_up() {
 
-  lower_motor_microdelay -= microdelay_difference_per_speedlevel;
+  lower_motor_4us_delay -= delay_difference_in_4us_per_speedlevel;
   current_step++;
 
   // REACHED TOPSPEED:
-  if (lower_motor_microdelay < topspeed_microdelay) {
-    lower_motor_microdelay = topspeed_microdelay;
+  if (lower_motor_4us_delay < topspeed_4us_delay) {
+    lower_motor_4us_delay = topspeed_4us_delay;
   }
 }
 
 void lower_motor_manage_ramp_down() {
 
-  lower_motor_microdelay += microdelay_difference_per_speedlevel;
+  lower_motor_4us_delay += delay_difference_in_4us_per_speedlevel;
   current_step++;
 
   // REACHED MINIMUM SPEED:
-  if (lower_motor_microdelay > startspeed_microdelay) {
-    lower_motor_microdelay = startspeed_microdelay;
+  if (lower_motor_4us_delay > startspeed_4us_delay) {
+    lower_motor_4us_delay = startspeed_4us_delay;
     lower_motor_is_running = false;
   }
 }
@@ -158,22 +164,22 @@ void make_initial_calculations() {
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
 
-  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
-  int_cycles_per_speedlevel = int(cycles_per_speedlevel);
-  Serial.print("CYCLES PER SPEEDLEVEL: ");
-  Serial.println(int_cycles_per_speedlevel);
+  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / us_counter_interval;
+  cycles_4us_per_speedlevel = int(cycles_per_speedlevel);
+  Serial.print("4us CYCLES PER SPEEDLEVEL: ");
+  Serial.println(cycles_4us_per_speedlevel);
 
-  startspeed_microdelay = calculate_microdelay(min_motor_rpm);
-  Serial.print("INITIAL MICRO-DELAY: ");
-  Serial.println(startspeed_microdelay);
-  topspeed_microdelay = calculate_microdelay(max_motor_rpm);
+  startspeed_4us_delay = calculate_4us_delay_from_rpm(min_motor_rpm);
+  Serial.print("INITIAL 4us DELAY: ");
+  Serial.println(startspeed_4us_delay);
 
-  Serial.print("TOPSPEED MICRO-DELAY:");
-  Serial.println(topspeed_microdelay);
+  topspeed_4us_delay = calculate_4us_delay_from_rpm(max_motor_rpm);
+  Serial.print("TOPSPEED 4us DELAY:");
+  Serial.println(topspeed_4us_delay);
 
-  float delay_difference = startspeed_microdelay - topspeed_microdelay;
+  float delay_difference = startspeed_4us_delay - topspeed_4us_delay;
   float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
-  microdelay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
+  delay_difference_in_4us_per_speedlevel = int(float_delay_difference_per_speedlevel);
 
   float rpm_shift_per_speedlevel;
   rpm_shift_per_speedlevel = float(max_motor_rpm - min_motor_rpm) / calculation_resolution;
@@ -181,13 +187,13 @@ void make_initial_calculations() {
   Serial.println(rpm_shift_per_speedlevel);
 }
 
-float calculate_microdelay(float rpm) {
+float calculate_4us_delay_from_rpm(float rpm) {
 
   float turns_per_second = rpm / 60;
   float switches_per_turn = full_steps_per_turn * micro_step_factor * switches_per_step;
   float steps_per_second = turns_per_second * switches_per_turn;
-  float float_microdelay = 1000000 / steps_per_second;
-  return float_microdelay;
+  float float_4us_delay = 1000000 / steps_per_second / 4;
+  return float_4us_delay;
 }
 
 // SETUP ***********************************************************************
@@ -227,6 +233,22 @@ int measure_setup_runtime() {
 
 void setup() {
 
+  delay(500);
+
+  // SET UP INTERRUPT-------------------------------------------------------------
+  noInterrupts(); // disable all interrupts
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1 = 0;
+  OCR1A = 64; // 64 compare match register
+  // 64= 16MHz : Prescaler 1 : 250kHz desired frequency => 4us
+  TCCR1B |= (1 << WGM12); // CTC mode
+  TCCR1B |= (1 << CS10); // CS10 no prescaling
+  TIMSK1 |= (1 << OCIE1A); // enable timer compare interrupt
+  //interrupts(); // enable all interrupts
+
+  // -----------------------------------------------------------------------------
+
   Serial.begin(115200);
   avg_runtime_us = measure_setup_runtime();
   Serial.println("START CALCULATIONS:");
@@ -236,16 +258,23 @@ void setup() {
   pinMode(TEST_SWITCH_PIN, INPUT_PULLUP); // for mega only
   pinMode(50, INPUT_PULLUP); // for mega only
   // SET INITIAL SPEED:
-  upper_motor_microdelay = startspeed_microdelay;
-  lower_motor_microdelay = startspeed_microdelay;
+  upper_motor_4us_delay = startspeed_4us_delay;
+  lower_motor_4us_delay = startspeed_4us_delay;
 
   Serial.println("EXIT SETUP");
+  delay(1000);
+  interrupts(); // enable all interrupts
+}
+
+ISR(TIMER1_COMPA_vect) { // timer compare interrupt service routine
+  us_counter_param_updater++;
+  us_counter_lower_switcher++;
+  us_counter_upper_switcher++;
 }
 
 void stepper_loop() {
 
   static int speedlevel_cycle_counter = 0;
-  speedlevel_cycle_counter++;
 
   // REACT TO INPUT PIN STATES -------------------------------------------------
 
@@ -277,8 +306,8 @@ void stepper_loop() {
   }
   // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
-  if (speedlevel_cycle_counter == int_cycles_per_speedlevel) {
-    speedlevel_cycle_counter = 0;
+  if (us_counter_param_updater >= cycles_4us_per_speedlevel) {
+    us_counter_param_updater = 0;
     // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
       upper_motor_manage_ramp_up();
@@ -297,13 +326,15 @@ void stepper_loop() {
   // SWITCH OUTPUTS -----------------------------------------------------------
 
   if (upper_motor_is_running) {
-    if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
+    if (us_counter_upper_switcher >= upper_motor_4us_delay) {
+      us_counter_upper_switcher = 0;
       PORTD ^= _BV(PD5); // NANO PIN 10
     }
   }
 
   if (lower_motor_is_running) {
-    if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
+    if (us_counter_lower_switcher >= lower_motor_4us_delay) {
+      us_counter_lower_switcher = 0;
       PORTD ^= _BV(PD6); // NANO PIN 9
     }
   }
@@ -324,7 +355,10 @@ void loop() {
       Serial.print(current_step);
 
       Serial.print("  DELAY: ");
-      Serial.println(upper_motor_microdelay);
+      Serial.println(upper_motor_4us_delay);
+
+      Serial.print("INTERRUPT COUNTER VALUE: ");
+      Serial.println(us_counter_lower_switcher);
     }
   }
 }
