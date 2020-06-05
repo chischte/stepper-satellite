@@ -5,14 +5,15 @@
  * Generates stepper signals using an Arduino 
  * *****************************************************************************
  * TODO:
- * Optimise runtime (fast version) !!!
  * Measure effective speed
+ * https://baremetalmicro.com/tutorial_avr_digital_io/index.html
  * https://github.com/NicksonYap/digitalWriteFast
  * *****************************************************************************
- * 
+ * -->PRESS MOTOR BUTTONS WHEN MEASURING RUNTIME
  * RUNTIME:
- * Measured runtime: 79 (substracted 5us for serial print insomnia-delay)
- * Resulting max rpm: 949
+ * Measured max runtime: 28us**
+ * **  --> substracted 5us for an insomnia-delay
+ * Resulting max rpm: 2678
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * COSTS:
@@ -33,15 +34,28 @@
 
 // GLOBAL VARIABLES ------------------------------------------------------------
 
+// --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
+
+int print_debug_info = false;
+//int print_debug_info = true;
+
+// --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
+
+// RUNTIME MEASUREMENT:
+int avg_runtime_us = 0;
+
+// INITIAL CALCULATIONS:
+int int_cycles_per_speedlevel;
+
 // SPEED AND TIME SETUP:
-const int min_motor_rpm = 50; // min = 10 (calculation algorithm)
+const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
 const int max_motor_rpm = 1500; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 100; // microseconds from min to max rpm
+unsigned int acceleration_time = 200; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
 const int switches_per_step = 2; // on and off
-const int calculation_resolution = 50;
+const int calculation_resolution = 200;
 const int full_steps_per_turn = 200; // 360/1.8°
 
 // VALUES FOR IN LOOP CALCULATIONS:
@@ -66,15 +80,12 @@ bool lower_motor_is_ramping_up = false;
 bool lower_motor_is_ramping_down = false;
 
 // PINS:
-const byte UPPER_MOTOR_INPUT_PIN = 10;
-const byte LOWER_MOTOR_INPUT_PIN = 9;
-const byte TEST_SWITCH_PIN = 11;
-Pin_monitor upper_motor_input_pin(UPPER_MOTOR_INPUT_PIN);
-Pin_monitor lower_motor_input_pin(LOWER_MOTOR_INPUT_PIN);
-Pin_monitor test_switch_pin(TEST_SWITCH_PIN);
+const byte UPPER_MOTOR_INPUT_PIN = 10; // PB2
+const byte LOWER_MOTOR_INPUT_PIN = 9; //  PB1
+const byte TEST_SWITCH_PIN = 11; // PB3
 
-const byte UPPER_MOTOR_STEP_PIN = 5;
-const byte LOWER_MOTOR_STEP_PIN = 6;
+const byte UPPER_MOTOR_STEP_PIN = 5; //PD5
+const byte LOWER_MOTOR_STEP_PIN = 6; //PD6
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
@@ -86,13 +97,14 @@ Microsomnia lower_motor_switching_delay;
 
 float calculate_microdelay(float rpm);
 int calculate_current_step_number(unsigned long time_elapsed);
+void stepper_loop();
 
 // FUNCTIONS *******************************************************************
 
 // CALCULATE UPPER MOTOR SPEED -------------------------------------------------
 void upper_motor_manage_ramp_up() {
-
   upper_motor_microdelay -= microdelay_difference_per_speedlevel;
+  //Serial.println("RAMP UP");
   current_step++;
 
   // REACHED TOPSPEED:
@@ -102,7 +114,7 @@ void upper_motor_manage_ramp_up() {
 }
 
 void upper_motor_manage_ramp_down() {
-
+  //Serial.println("RAMP DOWN");
   upper_motor_microdelay += microdelay_difference_per_speedlevel;
   current_step++;
 
@@ -112,6 +124,7 @@ void upper_motor_manage_ramp_down() {
     upper_motor_is_running = false;
   }
 }
+
 // CALCULATE LOWER MOTOR SPEED -------------------------------------------------
 void lower_motor_manage_ramp_up() {
 
@@ -136,20 +149,18 @@ void lower_motor_manage_ramp_down() {
   }
 }
 
-unsigned long measure_runtime() {
-  static long previous_micros = micros();
-  unsigned long runtime_elapsed = micros() - previous_micros;
-  previous_micros = micros();
-  return runtime_elapsed;
-}
-
 // INITIAL CALCULATIONS --------------------------------------------------------
 void make_initial_calculations() {
 
   float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
   int_time_per_speedlevel = int(float_time_per_speedlevel);
-  Serial.print("TIME PER SPEEDLEVEL: ");
+  Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
+
+  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
+  int_cycles_per_speedlevel = int(cycles_per_speedlevel);
+  Serial.print("CYCLES PER SPEEDLEVEL: ");
+  Serial.println(int_cycles_per_speedlevel);
 
   startspeed_microdelay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL MICRO-DELAY: ");
@@ -179,65 +190,86 @@ float calculate_microdelay(float rpm) {
 }
 
 // SETUP ***********************************************************************
+int measure_setup_runtime() {
+  long number_of_cycles = 100000;
+  unsigned long time_elapsed = 0;
+  unsigned long time_before_loop = 0;
+  unsigned long max_runtime = 0;
+  unsigned long time_for_all_loops = 0;
+
+  for (long i = number_of_cycles; i > 0; i--) {
+    time_before_loop = micros();
+    stepper_loop();
+
+    time_elapsed = micros() - time_before_loop;
+
+    time_for_all_loops = time_for_all_loops + time_elapsed;
+
+    if (time_elapsed > max_runtime) {
+      max_runtime = time_elapsed;
+    }
+  }
+  unsigned long avg_runtime = time_for_all_loops / number_of_cycles;
+
+  Serial.print("TOTAL RUNTIME [ms]: ");
+  Serial.println(time_for_all_loops / 1000);
+
+  Serial.print("AVG RUNTIME [us]: ");
+  Serial.println(avg_runtime);
+
+  Serial.print("MAX RUNTIME [us]: ");
+  Serial.println(max_runtime);
+
+  return avg_runtime;
+}
+
 void setup() {
 
   Serial.begin(115200);
+  avg_runtime_us = measure_setup_runtime();
   Serial.println("START CALCULATIONS:");
   make_initial_calculations();
-  Serial.println("EXIT SETUP");
   pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
-  pinMode(TEST_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(TEST_SWITCH_PIN, INPUT_PULLUP); // for mega only
+  pinMode(50, INPUT_PULLUP); // for mega only
   // SET INITIAL SPEED:
   upper_motor_microdelay = startspeed_microdelay;
   lower_motor_microdelay = startspeed_microdelay;
+
+  Serial.println("EXIT SETUP");
 }
 
-// LOOP ************************************************************************
-void loop() {
-  //Serial.println(digitalRead(TEST_SWITCH_PIN));
+void stepper_loop() {
+
+  static int speedlevel_cycle_counter = 0;
+  speedlevel_cycle_counter++;
+
   // REACT TO INPUT PIN STATES -------------------------------------------------
-
-  // if (test_switch_pin.switched_low()) {
-  //     upper_motor_is_running = true;
-  //     upper_motor_is_ramping_up = true;
-  //     upper_motor_is_ramping_down = false;
-  //     Serial.println("SWITCHED HIGH");
-  //   }
-
-  // if (test_switch_pin.switched_high()) {
-  //   upper_motor_is_running = true;
-  //   upper_motor_is_ramping_up = false;
-  //   upper_motor_is_ramping_down = true;
-  //    Serial.println("SWITCHED LOW");
-  // }
-
-  if (upper_motor_input_pin.switched_high()) {
-    upper_motor_is_running = true;
+  // UPPER MOTOR:
+  if (PINB & _BV(PINB2)) {
     upper_motor_is_ramping_up = true;
     upper_motor_is_ramping_down = false;
-  }
-
-  if (upper_motor_input_pin.switched_low()) {
     upper_motor_is_running = true;
+  } else {
     upper_motor_is_ramping_up = false;
     upper_motor_is_ramping_down = true;
   }
+  // LOWER MOTOR:
 
-  if (lower_motor_input_pin.switched_high()) {
-    lower_motor_is_running = true;
+  if (PINB & _BV(PINB1)) {
     lower_motor_is_ramping_up = true;
     lower_motor_is_ramping_down = false;
-  }
-
-  if (lower_motor_input_pin.switched_low()) {
     lower_motor_is_running = true;
+  } else {
     lower_motor_is_ramping_up = false;
     lower_motor_is_ramping_down = true;
   }
+
   // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
-  if (update_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
+  if (speedlevel_cycle_counter == int_cycles_per_speedlevel) {
+    speedlevel_cycle_counter = 0;
     // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
       upper_motor_manage_ramp_up();
@@ -257,31 +289,33 @@ void loop() {
 
   if (upper_motor_is_running) {
     if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
-      digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
+      PORTD ^= _BV(PD5); // NANO PIN 10
     }
   }
 
   if (lower_motor_is_running) {
     if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
-      digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
+      PORTD ^= _BV(PD6); // NANO PIN 9
     }
   }
   // GET INFORMATION -----------------------------------------------------------
+}
 
-  bool print_debug_information = false; // --> SET FALSE WHEN OPERATING
+// LOOP ************************************************************************
+void loop() {
+  stepper_loop();
 
-  if (print_debug_information) {
-    unsigned long runtime = measure_runtime();
+  if (print_debug_info) {
     if (print_delay.delay_time_is_up(1000)) {
 
-      //Serial.print(" CURRENT STEP : ");
-      //Serial.print(current_step);
+      Serial.print("  MOTOR RUNNING: ");
+      Serial.print(upper_motor_is_running);
 
-      //Serial.print("  DELAY: ");
-      //Serial.print(upper_motor_microdelay);
+      Serial.print(" CURRENT STEP : ");
+      Serial.print(current_step);
 
-      //Serial.print("  CODE RUNTIME: ");
-      Serial.println(runtime);
+      Serial.print("  DELAY: ");
+      Serial.println(upper_motor_microdelay);
     }
   }
 }
