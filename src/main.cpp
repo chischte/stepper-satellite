@@ -36,13 +36,14 @@
 
 // --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
 
-int print_debug_info = false;
-//int print_debug_info = true;
+bool print_debug_info = false;
+//bool print_debug_info = true;
 
 // --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
 
 // RUNTIME MEASUREMENT:
 int avg_runtime_us = 0;
+bool measure_runtime;
 
 // INITIAL CALCULATIONS:
 int int_cycles_per_speedlevel;
@@ -191,6 +192,7 @@ float calculate_microdelay(float rpm) {
 
 // SETUP ***********************************************************************
 int measure_setup_runtime() {
+  measure_runtime = true;
   long number_of_cycles = 100000;
   unsigned long time_elapsed = 0;
   unsigned long time_before_loop = 0;
@@ -219,7 +221,7 @@ int measure_setup_runtime() {
 
   Serial.print("MAX RUNTIME [us]: ");
   Serial.println(max_runtime);
-
+  measure_runtime = false;
   return avg_runtime;
 }
 
@@ -246,6 +248,7 @@ void stepper_loop() {
   speedlevel_cycle_counter++;
 
   // REACT TO INPUT PIN STATES -------------------------------------------------
+
   // UPPER MOTOR:
   if (PINB & _BV(PINB2)) {
     upper_motor_is_ramping_up = true;
@@ -266,6 +269,12 @@ void stepper_loop() {
     lower_motor_is_ramping_down = true;
   }
 
+  if (measure_runtime) {
+    upper_motor_is_ramping_up = true;
+    upper_motor_is_running = true;
+    lower_motor_is_ramping_up = true;
+    lower_motor_is_running = true;
+  }
   // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
   if (speedlevel_cycle_counter == int_cycles_per_speedlevel) {
