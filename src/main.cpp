@@ -49,7 +49,7 @@ int int_cycles_per_speedlevel;
 
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
-const int max_motor_rpm = 1500; // Motor max = 1750 (specification)
+const int max_motor_rpm = 1300; // Motor max = 1750 (specification)
 unsigned int acceleration_time = 200; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
