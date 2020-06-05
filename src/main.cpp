@@ -5,16 +5,15 @@
  * Generates stepper signals using an Arduino 
  * *****************************************************************************
  * TODO:
- * Optimise runtime (fast version) !!!
  * Measure effective speed
  * https://baremetalmicro.com/tutorial_avr_digital_io/index.html
  * https://github.com/NicksonYap/digitalWriteFast
  * *****************************************************************************
  * 
  * RUNTIME:
- * Measured runtime: 35us**
+ * Measured max runtime: 28us**
  * **  --> substracted 5us for an insomnia-delay
- * Resulting max rpm: 2142
+ * Resulting max rpm: 2678
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * COSTS:
@@ -35,17 +34,25 @@
 
 // GLOBAL VARIABLES ------------------------------------------------------------
 
-// --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
+// --> DEACTIVATE DEBUG AND RUNTIME WHEN OPERATING <---!-!-!-!-!-!
 
 int debug_mode = false;
+int runtime_measurement = false;
+//int runtime_measurement = true;
 //int debug_mode = true;
 
 // --> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
 
+// RUNTIME MEASUREMENT:
+int avg_runtime_us = 0;
+
+// INITIAL CALCULATIONS:
+int int_cycles_per_speedlevel;
+
 // SPEED AND TIME SETUP:
 const int min_motor_rpm = 50; // min = 10 (calculation algorithm)
 const int max_motor_rpm = 1500; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 5000; // microseconds from min to max rpm
+unsigned int acceleration_time = 500; // microseconds from min to max rpm
 
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
@@ -92,6 +99,7 @@ Microsomnia lower_motor_switching_delay;
 
 float calculate_microdelay(float rpm);
 int calculate_current_step_number(unsigned long time_elapsed);
+void runtime_loop();
 
 // FUNCTIONS *******************************************************************
 
@@ -155,8 +163,13 @@ void make_initial_calculations() {
 
   float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
   int_time_per_speedlevel = int(float_time_per_speedlevel);
-  Serial.print("TIME PER SPEEDLEVEL: ");
+  Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
+
+  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
+  int_cycles_per_speedlevel = int(cycles_per_speedlevel);
+  Serial.print("CYCLES PER SPEEDLEVEL: ");
+  Serial.println(int_cycles_per_speedlevel);
 
   startspeed_microdelay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL MICRO-DELAY: ");
@@ -186,12 +199,56 @@ float calculate_microdelay(float rpm) {
 }
 
 // SETUP ***********************************************************************
+int measure_setup_runtime() {
+  long number_of_cycles = 200000;
+  unsigned long time_elapsed = 0;
+  unsigned long time_before_loop = 0;
+  unsigned long max_runtime = 0;
+  unsigned long time_for_all_loops = 0;
+  int loesch_counter = 0;
+
+  for (long i = number_of_cycles; i > 0; i--) {
+    time_before_loop = micros();
+    runtime_loop();
+
+    time_elapsed = micros() - time_before_loop;
+    if (time_elapsed > 10) {
+      loesch_counter++;
+    }
+
+    time_for_all_loops = time_for_all_loops + time_elapsed;
+
+    if (time_elapsed > max_runtime) {
+      max_runtime = time_elapsed;
+    }
+  }
+  unsigned long avg_runtime = time_for_all_loops / number_of_cycles;
+  delay(500);
+
+  Serial.print("NO OF LOOPS > 15us: ");
+  Serial.println(loesch_counter);
+
+  Serial.print("TOTAL RUNTIME [ms]: ");
+  Serial.println(time_for_all_loops / 1000);
+
+  Serial.print("AVG RUNTIME [us]: ");
+  Serial.println(avg_runtime);
+
+  Serial.print("MAX RUNTIME [us]: ");
+  Serial.println(max_runtime);
+
+  Serial.println("EXIT SETUP");
+  delay(100);
+  return avg_runtime;
+}
+
 void setup() {
 
   Serial.begin(115200);
+  avg_runtime_us = measure_setup_runtime();
   Serial.println("START CALCULATIONS:");
+  delay(500);
   make_initial_calculations();
-  Serial.println("EXIT SETUP");
   pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
   pinMode(TEST_SWITCH_PIN, INPUT_PULLUP); // for mega only
@@ -199,10 +256,17 @@ void setup() {
   // SET INITIAL SPEED:
   upper_motor_microdelay = startspeed_microdelay;
   lower_motor_microdelay = startspeed_microdelay;
+
+  delay(2000);
+  //noInterrupts();
+
+  //interrupts();
 }
 
-// LOOP ************************************************************************
-void loop() {
+void runtime_loop() {
+
+  static int speedlevel_cycle_counter = 0;
+  speedlevel_cycle_counter++;
 
   // REACT TO INPUT PIN STATES -------------------------------------------------
   if (debug_mode) {
@@ -246,9 +310,18 @@ void loop() {
       lower_motor_is_ramping_down = true;
     }
   }
+  if (measure_runtime) {
+    lower_motor_is_ramping_up = true;
+    lower_motor_is_ramping_down = false;
+    lower_motor_is_running = true;
+    upper_motor_is_ramping_up = true;
+    upper_motor_is_ramping_down = false;
+    upper_motor_is_running = true;
+  }
   // UPDATE MOTOR FREQUENCIES ----------------------------------------------------
 
-  if (update_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
+  if (speedlevel_cycle_counter == int_cycles_per_speedlevel) {
+    speedlevel_cycle_counter = 0;
     // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
       upper_motor_manage_ramp_up();
@@ -269,17 +342,21 @@ void loop() {
   if (upper_motor_is_running) {
     if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
       PORTD ^= _BV(PD5); // NANO PIN 10
-      //digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
     }
   }
 
   if (lower_motor_is_running) {
     if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
       PORTD ^= _BV(PD6); // NANO PIN 9
-      //digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
     }
   }
   // GET INFORMATION -----------------------------------------------------------
+}
+
+// LOOP ************************************************************************
+void loop() {
+
+  runtime_loop();
 
   if (debug_mode) {
     unsigned long runtime = measure_runtime();
