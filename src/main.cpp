@@ -149,7 +149,6 @@ void make_initial_calculations() {
 
   Serial.println("INITIAL CALCULATIONS:");
 
-
   float startspeed_micro_delay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL DELAY [us]: ");
   Serial.println(startspeed_micro_delay);
@@ -191,7 +190,12 @@ void make_initial_calculations() {
   // float delay_difference = startspeed_step_counter_delay - topspeed_step_counter_delay;
   // float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
   // microdelay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
-  float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
+
+  int number_of_speedlevels = (startspeed_step_counter_delay - topspeed_step_counter_delay);
+  Serial.print("NUMBER OF SPEEDLEVELS: ");
+  Serial.println(number_of_speedlevels);
+
+  float float_time_per_speedlevel = float(acceleration_time * 1000) / number_of_speedlevels;
   int_time_per_speedlevel = int(float_time_per_speedlevel);
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
