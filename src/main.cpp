@@ -149,15 +149,6 @@ void make_initial_calculations() {
 
   Serial.println("INITIAL CALCULATIONS:");
 
-  float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
-  int_time_per_speedlevel = int(float_time_per_speedlevel);
-  Serial.print("TIME PER SPEEDLEVEL [ms]: ");
-  Serial.println(float_time_per_speedlevel);
-
-  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
-  int_cycles_per_speedlevel = int(cycles_per_speedlevel);
-  Serial.print("CYCLES PER SPEEDLEVEL: ");
-  Serial.println(int_cycles_per_speedlevel);
 
   float startspeed_micro_delay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL DELAY [us]: ");
@@ -175,20 +166,40 @@ void make_initial_calculations() {
   Serial.print("TOPSPEED DELAY [cylces]:");
   Serial.println(topspeed_step_counter_delay);
 
+  topspeed_micro_delay = topspeed_step_counter_delay * avg_runtime_us;
+  Serial.print("RESULTING TOPSPEED DELAY [us]:");
+  Serial.println(topspeed_micro_delay);
+
   float resulting_topspeed =
-      60.0 * 1000 * 1000 / (topspeed_step_counter_delay * avg_runtime_us * 2 * 2 * 200);
+      60.0 * 1000000.0 /
+      (topspeed_micro_delay * micro_step_factor * switches_per_step * full_steps_per_turn);
   Serial.print("RESULTING TOPSEED [rpm]:");
   Serial.println(resulting_topspeed);
 
-  float delay_difference = startspeed_step_counter_delay - topspeed_step_counter_delay;
-  float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
-  microdelay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
+  float next_slower_possible_speed = 60.0 * 1000000.0 /
+                                     ((topspeed_micro_delay + avg_runtime_us) * micro_step_factor *
+                                      switches_per_step * full_steps_per_turn);
+  Serial.print("NEXT SLOWER SPEED [rpm]:");
+  Serial.println(next_slower_possible_speed);
 
-  float rpm_shift_per_speedlevel;
-  rpm_shift_per_speedlevel = float(max_motor_rpm - min_motor_rpm) / calculation_resolution;
-  Serial.print("RPM DIFFERENCE @ FINAL SHIFT: ");
-  Serial.println(" TO BE CALCULATED ");
-  Serial.println("-----");
+  float next_faster_possible_speed = 60.0 * 1000000.0 /
+                                     ((topspeed_micro_delay - avg_runtime_us) * micro_step_factor *
+                                      switches_per_step * full_steps_per_turn);
+  Serial.print("NEXT FASTER SPEED [rpm]:");
+  Serial.println(next_faster_possible_speed);
+
+  // float delay_difference = startspeed_step_counter_delay - topspeed_step_counter_delay;
+  // float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
+  // microdelay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
+  float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
+  int_time_per_speedlevel = int(float_time_per_speedlevel);
+  Serial.print("TIME PER SPEEDLEVEL [ms]: ");
+  Serial.println(float_time_per_speedlevel);
+
+  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
+  int_cycles_per_speedlevel = int(cycles_per_speedlevel);
+  Serial.print("CYCLES PER SPEEDLEVEL: ");
+  Serial.println(int_cycles_per_speedlevel);
 }
 
 float calculate_microdelay(float rpm) {
