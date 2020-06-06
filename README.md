@@ -1,4 +1,3 @@
-stepper-satellite
 # stepper-satellite
 
 **MOTOR SPECS:** 
