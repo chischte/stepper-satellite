@@ -7,13 +7,23 @@
  * Michael Wettstein
  * June 2020, Zürich
  * *****************************************************************************
+ * OPTIMIZATION POTENTIAL:
+ * Use a cycle counter instead of a switch delay to avoid stuttering when
+ * motor is running fast and runtime does not fit to delay time.
+ * Limit minimum delay to exactly a multiple of runtime (probably min. 2 times).
+ * If necessary make runtime more constant or even a bit longer when finetuning
+ * to reach max motor speed.
+ * Analize acceleration curve graphically (spread sheet) and find optimization
+ * potential, e.g. decrease time per speedlevel at the beginning, when
+ * acceleration is slower.
+ * *****************************************************************************
  * RUNTIME:
  * Measured max runtime: 28us
  * Resulting max rpm: 2678
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * 
- * COSTS:
+ * RUNTIME COSTS:
  * 12us for a debounce (removed)
  * 10us for a pin monitoring (removed)
  * 6us for a digital read (removed)
@@ -48,7 +58,7 @@ unsigned int acceleration_time = 200; // [ms] from min to max rpm
 // MOTOR PARAMETERS:
 const int micro_step_factor = 2;
 const int switches_per_step = 2; // on and off
-const int calculation_resolution = 200;
+const int calculation_resolution = 200; // bigger = smoother
 const int full_steps_per_turn = 200; // 360/1.8°
 
 // VALUES FOR IN LOOP CALCULATIONS:
@@ -79,7 +89,6 @@ const byte LOWER_MOTOR_STEP_PIN = 6; //PD6
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
-Insomnia update_values_delay;
 Microsomnia upper_motor_switching_delay;
 Microsomnia lower_motor_switching_delay;
 
@@ -92,7 +101,6 @@ void stepper_loop();
 // CALCULATE UPPER MOTOR SPEED -------------------------------------------------
 void upper_motor_manage_ramp_up() {
   upper_motor_microdelay -= microdelay_difference_per_speedlevel;
-  //Serial.println("RAMP UP");
 
   // REACHED TOPSPEED:
   if (upper_motor_microdelay < topspeed_microdelay) {
@@ -101,7 +109,6 @@ void upper_motor_manage_ramp_up() {
 }
 
 void upper_motor_manage_ramp_down() {
-  //Serial.println("RAMP DOWN");
   upper_motor_microdelay += microdelay_difference_per_speedlevel;
 
   // REACHED MINIMUM SPEED:
@@ -162,8 +169,9 @@ void make_initial_calculations() {
 
   float rpm_shift_per_speedlevel;
   rpm_shift_per_speedlevel = float(max_motor_rpm - min_motor_rpm) / calculation_resolution;
-  Serial.print("RPM SHIFT PER SPEEDLEVEL: ");
-  Serial.println(rpm_shift_per_speedlevel);
+  Serial.print("RPM DIFFERENCE @ FINAL SHIFT: ");
+  Serial.println(" TO BE CALCULATED ");
+  Serial.println("-----");
 }
 
 float calculate_microdelay(float rpm) {
