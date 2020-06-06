@@ -195,7 +195,7 @@ void make_initial_calculations() {
   Serial.print("NUMBER OF SPEEDLEVELS: ");
   Serial.println(number_of_speedlevels);
 
-  float float_time_per_speedlevel = float(acceleration_time * 1000) / number_of_speedlevels;
+  float float_time_per_speedlevel = float(acceleration_time) / number_of_speedlevels;
   int_time_per_speedlevel = int(float_time_per_speedlevel);
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
