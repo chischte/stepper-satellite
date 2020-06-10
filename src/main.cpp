@@ -13,9 +13,8 @@
  * Limit minimum delay to exactly a multiple of runtime (probably min. 2 times).
  * If necessary make runtime more constant or even a bit longer when finetuning
  * to reach max motor speed.
- * Analize acceleration curve graphically (spread sheet) and find optimization
- * potential, e.g. decrease time per speedlevel at the beginning, when
- * acceleration is slower.
+ * Analyze and optimze acceleration curve, e.g. decrease time per speedlevel
+ * at the beginning, when acceleration is slower.
  * *****************************************************************************
  * RUNTIME:
  * Measured max runtime: 28us
@@ -48,7 +47,7 @@ bool print_debug_info = false;
 
 // RUNTIME MEASUREMENT:
 int avg_runtime_us = 0;
-bool measure_runtime;
+bool measure_runtime_enabled;
 
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
 const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
@@ -166,12 +165,6 @@ void make_initial_calculations() {
   float delay_difference = startspeed_microdelay - topspeed_microdelay;
   float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
   microdelay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
-
-  float rpm_shift_per_speedlevel;
-  rpm_shift_per_speedlevel = float(max_motor_rpm - min_motor_rpm) / calculation_resolution;
-  Serial.print("RPM DIFFERENCE @ FINAL SHIFT: ");
-  Serial.println(" TO BE CALCULATED ");
-  Serial.println("-----");
 }
 
 float calculate_microdelay(float rpm) {
@@ -207,7 +200,7 @@ void monitor_input_pin_lower_motor() {
     lower_motor_is_ramping_down = true;
   }
 
-  if (measure_runtime) {
+  if (measure_runtime_enabled) {
     upper_motor_is_ramping_up = true;
     upper_motor_is_running = true;
     lower_motor_is_ramping_up = true;
@@ -216,8 +209,8 @@ void monitor_input_pin_lower_motor() {
 }
 
 // OTHER FUNCTIONS--------------------------------------------------------------
-int measure_stepper_loop_runtime() {
-  measure_runtime = true; // simulates running motors
+int measure_runtime() {
+  measure_runtime_enabled = true; // simulates running motors
   long number_of_cycles = 10000;
   unsigned long time_elapsed = 0;
   unsigned long time_before_loop = 0;
@@ -225,9 +218,9 @@ int measure_stepper_loop_runtime() {
   unsigned long time_for_all_loops = 0;
 
   for (long i = number_of_cycles; i > 0; i--) {
+
     time_before_loop = micros();
     stepper_loop();
-
     time_elapsed = micros() - time_before_loop;
 
     time_for_all_loops = time_for_all_loops + time_elapsed;
@@ -246,7 +239,7 @@ int measure_stepper_loop_runtime() {
 
   Serial.print("MAX RUNTIME [us]: ");
   Serial.println(max_runtime);
-  measure_runtime = false;
+  measure_runtime_enabled = false;
   return avg_runtime;
 }
 
@@ -297,7 +290,7 @@ void stepper_loop() {
 void setup() {
 
   Serial.begin(115200);
-  avg_runtime_us = measure_stepper_loop_runtime();
+  avg_runtime_us = measure_runtime();
 
   make_initial_calculations();
 
@@ -314,7 +307,7 @@ void setup() {
 // LOOP ************************************************************************
 void loop() {
 
-  stepper_loop(); // seprated for runtime measurement
+  stepper_loop(); // separated for runtime measurement
 
   if (print_debug_info) {
     if (print_delay.delay_time_is_up(1000)) {
