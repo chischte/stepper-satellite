@@ -64,11 +64,11 @@ const int full_steps_per_turn = 200; // 360/1.8°
 // VALUES FOR IN LOOP CALCULATIONS:
 int int_time_per_speedlevel;
 int int_cycles_per_speedlevel;
-int startspeed_step_counter_delay;
-int topspeed_step_counter_delay;
+int startspeed_no_of_cycles_delay;
+int topspeed_no_of_cycles_delay;
 int microdelay_difference_per_speedlevel;
-int upper_motor_step_counter_delay;
-int lower_motor_step_counter_delay;
+int upper_motor_no_of_cycles_delay;
+int lower_motor_no_of_cycles_delay;
 
 int upper_motor_counter = 0;
 int lower_motor_counter = 0;
@@ -104,20 +104,22 @@ void stepper_loop();
 
 // CALCULATE UPPER MOTOR SPEED -------------------------------------------------
 void upper_motor_manage_ramp_up() {
-  upper_motor_step_counter_delay -= microdelay_difference_per_speedlevel;
+
+  upper_motor_no_of_cycles_delay--;
 
   // REACHED TOPSPEED:
-  if (upper_motor_step_counter_delay < topspeed_step_counter_delay) {
-    upper_motor_step_counter_delay = topspeed_step_counter_delay;
+  if (upper_motor_no_of_cycles_delay < topspeed_no_of_cycles_delay) {
+    upper_motor_no_of_cycles_delay = topspeed_no_of_cycles_delay;
   }
 }
 
 void upper_motor_manage_ramp_down() {
-  upper_motor_step_counter_delay += microdelay_difference_per_speedlevel;
+
+  upper_motor_no_of_cycles_delay++;
 
   // REACHED MINIMUM SPEED:
-  if (upper_motor_step_counter_delay > startspeed_step_counter_delay) {
-    upper_motor_step_counter_delay = startspeed_step_counter_delay;
+  if (upper_motor_no_of_cycles_delay > startspeed_no_of_cycles_delay) {
+    upper_motor_no_of_cycles_delay = startspeed_no_of_cycles_delay;
     upper_motor_is_running = false;
   }
 }
@@ -125,21 +127,21 @@ void upper_motor_manage_ramp_down() {
 // CALCULATE LOWER MOTOR SPEED -------------------------------------------------
 void lower_motor_manage_ramp_up() {
 
-  lower_motor_step_counter_delay -= microdelay_difference_per_speedlevel;
+  lower_motor_no_of_cycles_delay--;
 
   // REACHED TOPSPEED:
-  if (lower_motor_step_counter_delay < topspeed_step_counter_delay) {
-    lower_motor_step_counter_delay = topspeed_step_counter_delay;
+  if (lower_motor_no_of_cycles_delay < topspeed_no_of_cycles_delay) {
+    lower_motor_no_of_cycles_delay = topspeed_no_of_cycles_delay;
   }
 }
 
 void lower_motor_manage_ramp_down() {
 
-  lower_motor_step_counter_delay += microdelay_difference_per_speedlevel;
+  lower_motor_no_of_cycles_delay++;
 
   // REACHED MINIMUM SPEED:
-  if (lower_motor_step_counter_delay > startspeed_step_counter_delay) {
-    lower_motor_step_counter_delay = startspeed_step_counter_delay;
+  if (lower_motor_no_of_cycles_delay > startspeed_no_of_cycles_delay) {
+    lower_motor_no_of_cycles_delay = startspeed_no_of_cycles_delay;
     lower_motor_is_running = false;
   }
 }
@@ -153,19 +155,19 @@ void make_initial_calculations() {
   Serial.print("INITIAL DELAY [us]: ");
   Serial.println(startspeed_micro_delay);
 
-  startspeed_step_counter_delay = startspeed_micro_delay / avg_runtime_us;
+  startspeed_no_of_cycles_delay = startspeed_micro_delay / avg_runtime_us;
   Serial.print("INITIAL DELAY [cycles]: ");
-  Serial.println(startspeed_step_counter_delay);
+  Serial.println(startspeed_no_of_cycles_delay);
 
   float topspeed_micro_delay = calculate_microdelay(max_motor_rpm);
   Serial.print("TOPSPEED DELAY [us]:");
   Serial.println(topspeed_micro_delay);
 
-  topspeed_step_counter_delay = round(topspeed_micro_delay / avg_runtime_us);
+  topspeed_no_of_cycles_delay = round(topspeed_micro_delay / avg_runtime_us);
   Serial.print("TOPSPEED DELAY [cylces]:");
-  Serial.println(topspeed_step_counter_delay);
+  Serial.println(topspeed_no_of_cycles_delay);
 
-  topspeed_micro_delay = topspeed_step_counter_delay * avg_runtime_us;
+  topspeed_micro_delay = topspeed_no_of_cycles_delay * avg_runtime_us;
   Serial.print("RESULTING TOPSPEED DELAY [us]:");
   Serial.println(topspeed_micro_delay);
 
@@ -187,11 +189,7 @@ void make_initial_calculations() {
   Serial.print("NEXT FASTER SPEED [rpm]:");
   Serial.println(next_faster_possible_speed);
 
-  // float delay_difference = startspeed_step_counter_delay - topspeed_step_counter_delay;
-  // float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
-  // microdelay_difference_per_speedlevel = int(float_delay_difference_per_speedlevel);
-
-  int number_of_speedlevels = (startspeed_step_counter_delay - topspeed_step_counter_delay);
+  int number_of_speedlevels = (startspeed_no_of_cycles_delay - topspeed_no_of_cycles_delay);
   Serial.print("NUMBER OF SPEEDLEVELS: ");
   Serial.println(number_of_speedlevels);
 
@@ -325,7 +323,7 @@ void switch_outputs() {
   upper_motor_counter++;
 
   if (upper_motor_is_running) {
-    if (upper_motor_counter > upper_motor_step_counter_delay) {
+    if (upper_motor_counter > upper_motor_no_of_cycles_delay) {
       upper_motor_counter = 0;
       PORTD ^= _BV(PD5); // NANO PIN 10
     }
@@ -334,7 +332,7 @@ void switch_outputs() {
   lower_motor_counter++;
 
   if (lower_motor_is_running) {
-    if (lower_motor_counter > lower_motor_step_counter_delay) {
+    if (lower_motor_counter > lower_motor_no_of_cycles_delay) {
       lower_motor_counter = 0;
       PORTD ^= _BV(PD6); // NANO PIN 9
     }
@@ -367,8 +365,8 @@ void setup() {
   pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
 
   // SET INITIAL SPEED:
-  upper_motor_step_counter_delay = startspeed_step_counter_delay;
-  lower_motor_step_counter_delay = startspeed_step_counter_delay;
+  upper_motor_no_of_cycles_delay = startspeed_no_of_cycles_delay;
+  lower_motor_no_of_cycles_delay = startspeed_no_of_cycles_delay;
 
   Serial.println("EXIT SETUP");
 }
@@ -385,7 +383,7 @@ void loop() {
       Serial.print(upper_motor_is_running);
 
       Serial.print("  DELAY: ");
-      Serial.println(upper_motor_step_counter_delay);
+      Serial.println(upper_motor_no_of_cycles_delay);
     }
   }
 }
