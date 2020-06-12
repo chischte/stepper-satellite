@@ -42,8 +42,8 @@
 int speedlevel_cycle_counter = 0;
 
 // --!-!-!--> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
-bool print_debug_info = false;
-//bool print_debug_info = true;
+//bool print_debug_info = false;
+bool print_debug_info = true;
 
 // RUNTIME MEASUREMENT:
 int avg_runtime_us = 0;
@@ -88,6 +88,7 @@ const byte LOWER_MOTOR_STEP_PIN = 10; //PD6
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
+Insomnia change_values_delay;
 Microsomnia upper_motor_switching_delay;
 Microsomnia lower_motor_switching_delay;
 
@@ -244,7 +245,8 @@ int measure_runtime() {
 }
 
 void update_motor_frequencies() {
-  if (speedlevel_cycle_counter == long_cycles_per_speedlevel) {
+  //if (speedlevel_cycle_counter == long_cycles_per_speedlevel) {
+  if (change_values_delay.delay_time_is_up(100)) {
     speedlevel_cycle_counter = 0;
     // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
