@@ -7,6 +7,14 @@
  * Michael Wettstein
  * June 2020, Zürich
  * *****************************************************************************
+ * TODO:
+ * Use additional possibilities of the teensy to make the accelerationcurve
+ * flater
+ * Update comments, description and runtime measurment for teansy
+ * make an arduino tag in the git tree
+ * commit teensy branch to master
+ * 
+ * 
  * OPTIMIZATION POTENTIAL:
  * Use a cycle counter instead of a switch delay to avoid stuttering when
  * motor is running fast and runtime does not fit to delay time.
@@ -51,7 +59,7 @@ bool measure_runtime_enabled;
 
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
 const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
-const int max_motor_rpm = 1300; // Motor max = 1750 (specification)
+const int max_motor_rpm = 1750; // Motor max = 1750 (specification)
 unsigned int acceleration_time = 200; // [ms] from min to max rpm
 
 // MOTOR PARAMETERS:
@@ -62,7 +70,7 @@ const int full_steps_per_turn = 200; // 360/1.8°
 
 // VALUES FOR IN LOOP CALCULATIONS:
 int int_time_per_speedlevel;
-int int_cycles_per_speedlevel;
+unsigned long long_cycles_per_speedlevel;
 int startspeed_microdelay;
 int topspeed_microdelay;
 int microdelay_difference_per_speedlevel;
@@ -80,14 +88,15 @@ bool lower_motor_is_ramping_up = false;
 bool lower_motor_is_ramping_down = false;
 
 // I/O-PINS:
-const byte UPPER_MOTOR_INPUT_PIN = 10; // PB2
-const byte LOWER_MOTOR_INPUT_PIN = 9; //  PB1
+const byte UPPER_MOTOR_INPUT_PIN = 2; // PB2
+const byte LOWER_MOTOR_INPUT_PIN = 3; //  PB1
 
-const byte UPPER_MOTOR_STEP_PIN = 5; //PD5
-const byte LOWER_MOTOR_STEP_PIN = 6; //PD6
+const byte UPPER_MOTOR_STEP_PIN = 9; //PD5
+const byte LOWER_MOTOR_STEP_PIN = 10; //PD6
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
+Insomnia change_values_delay;
 Microsomnia upper_motor_switching_delay;
 Microsomnia lower_motor_switching_delay;
 
@@ -149,10 +158,10 @@ void make_initial_calculations() {
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
 
-  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
-  int_cycles_per_speedlevel = int(cycles_per_speedlevel);
-  Serial.print("CYCLES PER SPEEDLEVEL: ");
-  Serial.println(int_cycles_per_speedlevel);
+  // float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
+  // long_cycles_per_speedlevel = int(cycles_per_speedlevel);
+  // Serial.print("CYCLES PER SPEEDLEVEL: ");
+  // Serial.println(long_cycles_per_speedlevel);
 
   startspeed_microdelay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL MICRO-DELAY: ");
@@ -179,7 +188,7 @@ float calculate_microdelay(float rpm) {
 // MONITOR PINS ----------------------------------------------------------------
 void monitor_input_pin_upper_motor() {
 
-  if (PINB & _BV(PINB2)) {
+  if (digitalRead(UPPER_MOTOR_INPUT_PIN)) {
     upper_motor_is_ramping_up = true;
     upper_motor_is_ramping_down = false;
     upper_motor_is_running = true;
@@ -191,7 +200,7 @@ void monitor_input_pin_upper_motor() {
 
 void monitor_input_pin_lower_motor() {
 
-  if (PINB & _BV(PINB1)) {
+  if (digitalRead(LOWER_MOTOR_INPUT_PIN)) {
     lower_motor_is_ramping_up = true;
     lower_motor_is_ramping_down = false;
     lower_motor_is_running = true;
@@ -244,7 +253,8 @@ int measure_runtime() {
 }
 
 void update_motor_frequencies() {
-  if (speedlevel_cycle_counter == int_cycles_per_speedlevel) {
+  //if (speedlevel_cycle_counter == long_cycles_per_speedlevel) {
+  if (change_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
     speedlevel_cycle_counter = 0;
     // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
@@ -266,13 +276,13 @@ void update_motor_frequencies() {
 void switch_outputs() {
   if (upper_motor_is_running) {
     if (upper_motor_switching_delay.delay_time_is_up(upper_motor_microdelay)) {
-      PORTD ^= _BV(PD5); // NANO PIN 10
+      digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN)); // NANO PIN 10
     }
   }
 
   if (lower_motor_is_running) {
     if (lower_motor_switching_delay.delay_time_is_up(lower_motor_microdelay)) {
-      PORTD ^= _BV(PD6); // NANO PIN 9
+      digitalWrite(LOWER_MOTOR_STEP_PIN, !digitalRead(LOWER_MOTOR_STEP_PIN));
     }
   }
 }
@@ -290,34 +300,37 @@ void stepper_loop() {
 void setup() {
 
   Serial.begin(115200);
-  avg_runtime_us = measure_runtime();
+  while (!Serial && millis() <= 3000) {
+   // wait for serial connection
+   }
+    avg_runtime_us = measure_runtime();
 
-  make_initial_calculations();
+    make_initial_calculations();
 
-  pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
-  pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
+    pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
+    pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
 
-  // SET INITIAL SPEED:
-  upper_motor_microdelay = startspeed_microdelay;
-  lower_motor_microdelay = startspeed_microdelay;
+    // SET INITIAL SPEED:
+    upper_motor_microdelay = startspeed_microdelay;
+    lower_motor_microdelay = startspeed_microdelay;
 
-  Serial.println("EXIT SETUP");
-}
+    Serial.println("EXIT SETUP");
+  }
 
-// LOOP ************************************************************************
-void loop() {
+  // LOOP ************************************************************************
+  void loop() {
 
-  stepper_loop(); // separated for runtime measurement
+    stepper_loop(); // separated for runtime measurement
 
-  if (print_debug_info) {
-    if (print_delay.delay_time_is_up(1000)) {
+    if (print_debug_info) {
+      if (print_delay.delay_time_is_up(1000)) {
 
-      Serial.print("  MOTOR RUNNING: ");
-      Serial.print(upper_motor_is_running);
+        Serial.print("  MOTOR RUNNING: ");
+        Serial.print(upper_motor_is_running);
 
-      Serial.print("  DELAY: ");
-      Serial.println(upper_motor_microdelay);
+        Serial.print("  DELAY: ");
+        Serial.println(upper_motor_microdelay);
+      }
     }
   }
-}
-// ********************************************************** END OF PROGRAM ***
+  // ********************************************************** END OF PROGRAM ***
