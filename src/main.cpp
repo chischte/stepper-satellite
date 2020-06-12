@@ -13,10 +13,7 @@
  * Update comments, description and runtime measurment for teansy
  * make an arduino tag in the git tree
  * commit teensy branch to master
- * FIX BUG !SERIAL!!!!!!
  * 
- * 
- *  * 
  * 
  * OPTIMIZATION POTENTIAL:
  * Use a cycle counter instead of a switch delay to avoid stuttering when
@@ -303,36 +300,37 @@ void stepper_loop() {
 void setup() {
 
   Serial.begin(115200);
-  // while (!Serial) {
-  // }
-  avg_runtime_us = measure_runtime();
+  while (!Serial && millis() <= 3000) {
+   // wait for serial connection
+   }
+    avg_runtime_us = measure_runtime();
 
-  make_initial_calculations();
+    make_initial_calculations();
 
-  pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
-  pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
+    pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
+    pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
 
-  // SET INITIAL SPEED:
-  upper_motor_microdelay = startspeed_microdelay;
-  lower_motor_microdelay = startspeed_microdelay;
+    // SET INITIAL SPEED:
+    upper_motor_microdelay = startspeed_microdelay;
+    lower_motor_microdelay = startspeed_microdelay;
 
-  Serial.println("EXIT SETUP");
-}
+    Serial.println("EXIT SETUP");
+  }
 
-// LOOP ************************************************************************
-void loop() {
+  // LOOP ************************************************************************
+  void loop() {
 
-  stepper_loop(); // separated for runtime measurement
+    stepper_loop(); // separated for runtime measurement
 
-  if (print_debug_info) {
-    if (print_delay.delay_time_is_up(1000)) {
+    if (print_debug_info) {
+      if (print_delay.delay_time_is_up(1000)) {
 
-      Serial.print("  MOTOR RUNNING: ");
-      Serial.print(upper_motor_is_running);
+        Serial.print("  MOTOR RUNNING: ");
+        Serial.print(upper_motor_is_running);
 
-      Serial.print("  DELAY: ");
-      Serial.println(upper_motor_microdelay);
+        Serial.print("  DELAY: ");
+        Serial.println(upper_motor_microdelay);
+      }
     }
   }
-}
-// ********************************************************** END OF PROGRAM ***
+  // ********************************************************** END OF PROGRAM ***
