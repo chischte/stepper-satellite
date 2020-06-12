@@ -12,7 +12,11 @@
  * flater
  * Update comments, description and runtime measurment for teansy
  * make an arduino tag in the git tree
- * commit teensy branch to master * 
+ * commit teensy branch to master
+ * FIX BUG !SERIAL!!!!!!
+ * 
+ * 
+ *  * 
  * 
  * OPTIMIZATION POTENTIAL:
  * Use a cycle counter instead of a switch delay to avoid stuttering when
@@ -299,8 +303,8 @@ void stepper_loop() {
 void setup() {
 
   Serial.begin(115200);
-  while (!Serial) {
-  }
+  // while (!Serial) {
+  // }
   avg_runtime_us = measure_runtime();
 
   make_initial_calculations();
