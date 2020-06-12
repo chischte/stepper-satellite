@@ -7,6 +7,13 @@
  * Michael Wettstein
  * June 2020, Zürich
  * *****************************************************************************
+ * TODO:
+ * Use additional possibilities of the teensy to make the accelerationcurve
+ * flater
+ * Update comments, description and runtime measurment for teansy
+ * make an arduino tag in the git tree
+ * commit teensy branch to master * 
+ * 
  * OPTIMIZATION POTENTIAL:
  * Use a cycle counter instead of a switch delay to avoid stuttering when
  * motor is running fast and runtime does not fit to delay time.
