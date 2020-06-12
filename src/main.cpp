@@ -42,8 +42,8 @@
 int speedlevel_cycle_counter = 0;
 
 // --!-!-!--> DEACTIVATE DEBUG WHEN OPERATING <---!-!-!-!-!-!
-//bool print_debug_info = false;
-bool print_debug_info = true;
+bool print_debug_info = false;
+//bool print_debug_info = true;
 
 // RUNTIME MEASUREMENT:
 int avg_runtime_us = 0;
@@ -51,7 +51,7 @@ bool measure_runtime_enabled;
 
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
 const int min_motor_rpm = 100; // min = 10 (calculation algorithm)
-const int max_motor_rpm = 1300; // Motor max = 1750 (specification)
+const int max_motor_rpm = 1750; // Motor max = 1750 (specification)
 unsigned int acceleration_time = 200; // [ms] from min to max rpm
 
 // MOTOR PARAMETERS:
@@ -150,10 +150,10 @@ void make_initial_calculations() {
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
 
-  float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
-  long_cycles_per_speedlevel = int(cycles_per_speedlevel);
-  Serial.print("CYCLES PER SPEEDLEVEL: ");
-  Serial.println(long_cycles_per_speedlevel);
+  // float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
+  // long_cycles_per_speedlevel = int(cycles_per_speedlevel);
+  // Serial.print("CYCLES PER SPEEDLEVEL: ");
+  // Serial.println(long_cycles_per_speedlevel);
 
   startspeed_microdelay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL MICRO-DELAY: ");
@@ -246,7 +246,7 @@ int measure_runtime() {
 
 void update_motor_frequencies() {
   //if (speedlevel_cycle_counter == long_cycles_per_speedlevel) {
-  if (change_values_delay.delay_time_is_up(100)) {
+  if (change_values_delay.delay_time_is_up(int_time_per_speedlevel)) {
     speedlevel_cycle_counter = 0;
     // UPPER MOTOR:
     if (upper_motor_is_ramping_up) {
