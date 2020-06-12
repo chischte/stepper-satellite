@@ -158,11 +158,6 @@ void make_initial_calculations() {
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
   Serial.println(float_time_per_speedlevel);
 
-  // float cycles_per_speedlevel = (float_time_per_speedlevel * 1000) / avg_runtime_us;
-  // long_cycles_per_speedlevel = int(cycles_per_speedlevel);
-  // Serial.print("CYCLES PER SPEEDLEVEL: ");
-  // Serial.println(long_cycles_per_speedlevel);
-
   startspeed_microdelay = calculate_microdelay(min_motor_rpm);
   Serial.print("INITIAL MICRO-DELAY: ");
   Serial.println(startspeed_microdelay);
@@ -170,6 +165,14 @@ void make_initial_calculations() {
   topspeed_microdelay = calculate_microdelay(max_motor_rpm);
   Serial.print("TOPSPEED MICRO-DELAY:");
   Serial.println(topspeed_microdelay);
+
+  float microdelay_times_rpm_constant_min = min_motor_rpm * calculate_microdelay(min_motor_rpm);
+  Serial.print("MICRODELAY TIMES RPM CONSTANT MIN:");
+  Serial.println(microdelay_times_rpm_constant_min);
+
+  float microdelay_times_rpm_constant_max = max_motor_rpm * calculate_microdelay(max_motor_rpm);
+  Serial.print("MICRODELAY TIMES RPM CONSTANT MAX:");
+  Serial.println(microdelay_times_rpm_constant_max);
 
   float delay_difference = startspeed_microdelay - topspeed_microdelay;
   float float_delay_difference_per_speedlevel = delay_difference / calculation_resolution;
@@ -301,36 +304,36 @@ void setup() {
 
   Serial.begin(115200);
   while (!Serial && millis() <= 3000) {
-   // wait for serial connection
-   }
-    avg_runtime_us = measure_runtime();
-
-    make_initial_calculations();
-
-    pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
-    pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
-
-    // SET INITIAL SPEED:
-    upper_motor_microdelay = startspeed_microdelay;
-    lower_motor_microdelay = startspeed_microdelay;
-
-    Serial.println("EXIT SETUP");
+    // wait for serial connection
   }
+  avg_runtime_us = measure_runtime();
 
-  // LOOP ************************************************************************
-  void loop() {
+  make_initial_calculations();
 
-    stepper_loop(); // separated for runtime measurement
+  pinMode(UPPER_MOTOR_STEP_PIN, OUTPUT);
+  pinMode(LOWER_MOTOR_STEP_PIN, OUTPUT);
 
-    if (print_debug_info) {
-      if (print_delay.delay_time_is_up(1000)) {
+  // SET INITIAL SPEED:
+  upper_motor_microdelay = startspeed_microdelay;
+  lower_motor_microdelay = startspeed_microdelay;
 
-        Serial.print("  MOTOR RUNNING: ");
-        Serial.print(upper_motor_is_running);
+  Serial.println("EXIT SETUP");
+}
 
-        Serial.print("  DELAY: ");
-        Serial.println(upper_motor_microdelay);
-      }
+// LOOP ************************************************************************
+void loop() {
+
+  stepper_loop(); // separated for runtime measurement
+
+  if (print_debug_info) {
+    if (print_delay.delay_time_is_up(1000)) {
+
+      Serial.print("  MOTOR RUNNING: ");
+      Serial.print(upper_motor_is_running);
+
+      Serial.print("  DELAY: ");
+      Serial.println(upper_motor_microdelay);
     }
   }
-  // ********************************************************** END OF PROGRAM ***
+}
+// ********************************************************** END OF PROGRAM ***
