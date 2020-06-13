@@ -10,6 +10,7 @@
  * 
  * TODO:
  * Update comments, description and runtime measurement for teensy
+ * Evaluate teensy runtime costs
  * 
  * *****************************************************************************
  * RUNTIME:
@@ -18,7 +19,12 @@
  * RPM = 75000/runtime
  * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
  * 
- * RUNTIME COSTS:
+ * TEENSY RUNTIME COSTS:
+ * 
+ * 
+ * 
+ * 
+ * ARDUINO NANO RUNTIME COSTS:
  * 12us for a debounce (removed)
  * 10us for a pin monitoring (removed)
  * 6us for a digital read (removed)
@@ -44,7 +50,7 @@ bool print_debug_info = false;
 bool measure_runtime_enabled;
 
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
-const int min_motor_rpm = 100; 
+const int min_motor_rpm = 100;
 const int max_motor_rpm = 1750; // Motor max = 1750 (specification)
 unsigned int acceleration_time = 10200; // [ms] from min to max rpm
 const int calculation_resolution = 200; // bigger = smoother
@@ -75,11 +81,11 @@ bool lower_motor_is_ramping_up = false;
 bool lower_motor_is_ramping_down = false;
 
 // I/O-PINS:
-const byte UPPER_MOTOR_INPUT_PIN = 2; // PB2
-const byte LOWER_MOTOR_INPUT_PIN = 3; //  PB1
+const byte UPPER_MOTOR_INPUT_PIN = 2;
+const byte LOWER_MOTOR_INPUT_PIN = 3;
 
-const byte UPPER_MOTOR_STEP_PIN = 9; //PD5
-const byte LOWER_MOTOR_STEP_PIN = 10; //PD6
+const byte UPPER_MOTOR_STEP_PIN = 9;
+const byte LOWER_MOTOR_STEP_PIN = 10;
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
@@ -137,24 +143,24 @@ void lower_motor_manage_ramp_down() {
 // INITIAL CALCULATIONS --------------------------------------------------------
 void make_initial_calculations() {
 
-  Serial.println("INITIAL CALCULATIONS:");
+  Serial.println();
 
   float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
   time_per_speedlevel = int(float_time_per_speedlevel);
   Serial.print("TIME PER SPEEDLEVEL [ms]: ");
-  Serial.println(float_time_per_speedlevel,1);
+  Serial.println(float_time_per_speedlevel, 1);
 
   float float_rpm_shift_per_speedlevel = (max_motor_rpm - min_motor_rpm) / calculation_resolution;
   rpm_shift_per_speedlevel = int(float_rpm_shift_per_speedlevel);
-  Serial.print("RPM SHIFT PER SPEEDLEVEL:");
-  Serial.println(float_rpm_shift_per_speedlevel,1);
+  Serial.print("RPM SHIFT PER SPEEDLEVEL: ");
+  Serial.println(float_rpm_shift_per_speedlevel, 1);
 
   rpm_times_microdelay_constant = pow(10, 6) * 60 / switches_per_turn;
-  Serial.print("RPM TIMES MICRODELAY CONSTANT: ");
+  Serial.print("RPM x MICRODELAY CONSTANT: ");
   Serial.println(rpm_times_microdelay_constant);
 }
 
-unsigned long calculate_microdelay_using_float(int rpm) {
+unsigned long calculate_microdelay(int rpm) {
   float float_microdelay = float(rpm_times_microdelay_constant) / rpm;
   unsigned long microdelay = round(float_microdelay);
   return microdelay;
@@ -220,6 +226,10 @@ void measure_runtime() {
   }
   unsigned long avg_runtime = time_for_all_loops / number_of_cycles;
 
+  Serial.println();
+  Serial.print("NUMBER OF CYCLES MEASURED: ");
+  Serial.println(number_of_cycles);
+
   Serial.print("TOTAL RUNTIME [ms]: ");
   Serial.println(time_for_all_loops / 1000);
 
@@ -239,7 +249,7 @@ void update_upper_motorspeed() {
   if (upper_motor_is_ramping_down) {
     upper_motor_manage_ramp_down();
   }
-  upper_motor_microdelay = calculate_microdelay_using_float(upper_motor_rpm);
+  upper_motor_microdelay = calculate_microdelay(upper_motor_rpm);
 }
 
 void update_lower_motorspeed() {
@@ -249,7 +259,7 @@ void update_lower_motorspeed() {
   if (lower_motor_is_ramping_down) {
     lower_motor_manage_ramp_down();
   }
-  lower_motor_microdelay = calculate_microdelay_using_float(lower_motor_rpm);
+  lower_motor_microdelay = calculate_microdelay(lower_motor_rpm);
 }
 
 void switch_outputs() {
