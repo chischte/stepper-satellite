@@ -52,7 +52,7 @@ bool measure_runtime_enabled;
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
 const int min_motor_rpm = 100;
 const int max_motor_rpm = 1750; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 10200; // [ms] from min to max rpm
+unsigned int acceleration_time = 5000; // [ms] from min to max rpm
 const int calculation_resolution = 200; // bigger = smoother
 
 // MOTOR PARAMETERS:
@@ -313,6 +313,8 @@ void setup() {
 
 // LOOP ************************************************************************
 void loop() {
+  //digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
+  //delay(1);
 
   stepper_loop(); // separated for runtime measurement
 
