@@ -9,20 +9,15 @@
  * *****************************************************************************
  * 
  * TODO:
- * Update comments, description and runtime measurement for teensy
  * Evaluate teensy runtime costs
  * 
  * *****************************************************************************
  * RUNTIME:
- * Measured max runtime: 28us
- * Resulting max rpm: 2678
- * RPM = 75000/runtime
- * 75000 = (10^6 micros*60 seconds / 2 Switches / 2 Microsteps / 200Steps)
+ * Measured max runtime: 0.67us on a Teensy 4.0
+ * (28us on an Arduino Nano)
  * 
  * TEENSY RUNTIME COSTS:
- * 
- * 
- * 
+ *  
  * 
  * ARDUINO NANO RUNTIME COSTS:
  * 12us for a debounce (removed)
@@ -50,9 +45,9 @@ bool print_debug_info = false;
 bool measure_runtime_enabled;
 
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
-const int min_motor_rpm = 100;
-const int max_motor_rpm = 1750; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 5000; // [ms] from min to max rpm
+const int min_motor_rpm = 0;
+const int max_motor_rpm = 1950; // Motor max = 1750 (specification)
+unsigned int acceleration_time = 70; // [ms] from min to max rpm
 const int calculation_resolution = 200; // bigger = smoother
 
 // MOTOR PARAMETERS:
@@ -62,7 +57,7 @@ const int full_steps_per_turn = 200; // 360/1.8°
 const int switches_per_turn = full_steps_per_turn * micro_step_factor * switches_per_step;
 
 // VALUES FOR IN LOOP CALCULATIONS:
-int time_per_speedlevel;
+unsigned long us_time_per_speedlevel;
 int rpm_shift_per_speedlevel;
 int upper_motor_rpm;
 unsigned long upper_motor_microdelay;
@@ -89,7 +84,7 @@ const byte LOWER_MOTOR_STEP_PIN = 10;
 
 // DELAYS ----------------------------------------------------------------------
 Insomnia print_delay;
-Insomnia change_values_delay;
+Microsomnia change_values_delay;
 Microsomnia upper_motor_switching_delay;
 Microsomnia lower_motor_switching_delay;
 
@@ -145,10 +140,11 @@ void make_initial_calculations() {
 
   Serial.println();
 
-  float float_time_per_speedlevel = float(acceleration_time) / (calculation_resolution - 1);
-  time_per_speedlevel = int(float_time_per_speedlevel);
-  Serial.print("TIME PER SPEEDLEVEL [ms]: ");
-  Serial.println(float_time_per_speedlevel, 1);
+  float float_us_time_per_speedlevel =
+      float(acceleration_time) * 1000 / (calculation_resolution - 1);
+  us_time_per_speedlevel = int(float_us_time_per_speedlevel);
+  Serial.print("TIME PER SPEEDLEVEL [us]: ");
+  Serial.println(float_us_time_per_speedlevel, 0);
 
   float float_rpm_shift_per_speedlevel = (max_motor_rpm - min_motor_rpm) / calculation_resolution;
   rpm_shift_per_speedlevel = int(float_rpm_shift_per_speedlevel);
@@ -281,7 +277,7 @@ void stepper_loop() {
   monitor_upper_input();
   monitor_lower_input();
 
-  if (change_values_delay.delay_time_is_up(time_per_speedlevel)) {
+  if (change_values_delay.delay_time_is_up(us_time_per_speedlevel)) {
     update_upper_motorspeed();
     update_lower_motorspeed();
   }
@@ -313,9 +309,6 @@ void setup() {
 
 // LOOP ************************************************************************
 void loop() {
-  //digitalWrite(UPPER_MOTOR_STEP_PIN, !digitalRead(UPPER_MOTOR_STEP_PIN));
-  //delay(1);
-
   stepper_loop(); // separated for runtime measurement
 
   if (print_debug_info) {
