@@ -99,7 +99,7 @@ void stepper_loop();
 // FUNCTIONS *******************************************************************
 
 // CALCULATE UPPER MOTOR SPEED -------------------------------------------------
-void upper_motor_manage_ramp_up() {
+void upper_motor_ramp_up() {
   upper_motor_rpm += rpm_shift_per_speedlevel;
 
   // REACHED TOPSPEED:
@@ -108,7 +108,7 @@ void upper_motor_manage_ramp_up() {
   }
 }
 
-void upper_motor_manage_ramp_down() {
+void upper_motor_ramp_down() {
   upper_motor_rpm -= rpm_shift_per_speedlevel;
 
   // REACHED MINIMUM SPEED:
@@ -119,7 +119,7 @@ void upper_motor_manage_ramp_down() {
 }
 
 // CALCULATE LOWER MOTOR SPEED -------------------------------------------------
-void lower_motor_manage_ramp_up() {
+void lower_motor_ramp_up() {
 
   lower_motor_rpm += rpm_shift_per_speedlevel;
 
@@ -129,12 +129,12 @@ void lower_motor_manage_ramp_up() {
   }
 }
 
-void lower_motor_manage_ramp_down() {
+void lower_motor_ramp_down() {
 
   lower_motor_rpm -= rpm_shift_per_speedlevel;
 
   // REACHED MINIMUM SPEED:
-  if (lower_motor_rpm > min_motor_rpm) {
+  if (lower_motor_rpm < min_motor_rpm) {
     lower_motor_rpm = min_motor_rpm;
     lower_motor_is_running = false;
   }
@@ -167,7 +167,7 @@ unsigned long calculate_microdelay(int rpm) {
 }
 
 // MONITOR PINS ----------------------------------------------------------------
-void monitor_input_pin_upper_motor() {
+void monitor_upper_input() {
 
   if (digitalRead(UPPER_MOTOR_INPUT_PIN)) {
     upper_motor_is_ramping_up = true;
@@ -184,7 +184,7 @@ void monitor_input_pin_upper_motor() {
   }
 }
 
-void monitor_input_pin_lower_motor() {
+void monitor_lower_input() {
 
   if (digitalRead(LOWER_MOTOR_INPUT_PIN)) {
     lower_motor_is_ramping_up = true;
@@ -224,7 +224,7 @@ void measure_runtime() {
       max_runtime = time_elapsed;
     }
   }
-  unsigned long avg_runtime = time_for_all_loops / number_of_cycles;
+  float avg_runtime = float(time_for_all_loops) / number_of_cycles;
 
   Serial.println();
   Serial.print("NUMBER OF CYCLES MEASURED: ");
@@ -244,20 +244,20 @@ void measure_runtime() {
 void update_upper_motorspeed() {
 
   if (upper_motor_is_ramping_up) {
-    upper_motor_manage_ramp_up();
+    upper_motor_ramp_up();
   }
   if (upper_motor_is_ramping_down) {
-    upper_motor_manage_ramp_down();
+    upper_motor_ramp_down();
   }
   upper_motor_microdelay = calculate_microdelay(upper_motor_rpm);
 }
 
 void update_lower_motorspeed() {
   if (lower_motor_is_ramping_up) {
-    lower_motor_manage_ramp_up();
+    lower_motor_ramp_up();
   }
   if (lower_motor_is_ramping_down) {
-    lower_motor_manage_ramp_down();
+    lower_motor_ramp_down();
   }
   lower_motor_microdelay = calculate_microdelay(lower_motor_rpm);
 }
@@ -278,8 +278,8 @@ void switch_outputs() {
 
 void stepper_loop() {
 
-  monitor_input_pin_upper_motor();
-  monitor_input_pin_lower_motor();
+  monitor_upper_input();
+  monitor_lower_input();
 
   if (change_values_delay.delay_time_is_up(time_per_speedlevel)) {
     update_upper_motorspeed();
@@ -293,7 +293,7 @@ void stepper_loop() {
 void setup() {
 
   Serial.begin(115200);
-  while (!Serial && millis() <= 3000) {
+  while (!Serial && (millis() <= 6000)) {
     // wait for serial connection
   }
 
