@@ -46,8 +46,8 @@ bool measure_runtime_enabled;
 
 // SPEED AND TIME SETUP: (ADJUST TO FIT MOTOR SETUP)
 const int min_motor_rpm = 0;
-const int max_motor_rpm = 1950; // Motor max = 1750 (specification)
-unsigned int acceleration_time = 70; // [ms] from min to max rpm
+const int max_motor_rpm = 1850; // Motor max = 1750 (specification)
+unsigned int acceleration_time = 200; // [ms] from min to max rpm
 const int calculation_resolution = 200; // bigger = smoother
 
 // MOTOR PARAMETERS:
